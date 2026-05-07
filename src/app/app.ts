@@ -340,6 +340,16 @@ export class App {
     }
   }
 
+  addLayer(): void {
+    this.state.addLayer();
+    this.refreshYaml();
+  }
+
+  addElement(type: Exclude<DesignElementType, 'text' | 'polygon'>): void {
+    this.state.addElementToSelectedLayer(type);
+    this.refreshYaml();
+  }
+
   toggleLayerLocked(layer: Layer, locked: boolean): void {
     this.state.updateLayer(layer.id, { locked });
     if (locked && this.state.selectedLayerId() === layer.id) {

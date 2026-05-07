@@ -19,9 +19,8 @@
 
 .topbar {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 16px;
-  align-items: center;
+  gap: 8px;
+  align-items: start;
   padding: 10px 14px;
   border-bottom: 1px solid #c5ccc2;
   background: #f7f8f4;
@@ -29,11 +28,20 @@
 
 .menubar,
 .toolbar,
-.segmented,
-.button-row {
+.button-row,
+.tool-group,
+.mode-tool-group {
   display: flex;
   gap: 6px;
   align-items: center;
+}
+
+.toolbar {
+  flex-wrap: wrap;
+}
+
+.mode-tool-group {
+  margin-left: auto;
 }
 
 .menu-root {
@@ -56,6 +64,18 @@ button.active {
 
 .menu-trigger {
   padding: 0 12px;
+}
+
+.tool-group {
+  margin-right: auto;
+}
+
+.toolbar-icon-button {
+  display: grid;
+  width: 32px;
+  min-width: 32px;
+  place-items: center;
+  padding: 0;
 }
 
 .menu-popover {

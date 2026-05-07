@@ -1,6 +1,11 @@
 import { computed, Injectable, signal } from '@angular/core';
 import { createDefaultProject } from '../models/default-project';
-import { DesignElement, GearElement, isGearElement } from '../models/element.model';
+import {
+  DesignElement,
+  DesignElementType,
+  GearElement,
+  isGearElement,
+} from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { AppMode, CanvasSettings, PageSetup, Project } from '../models/project.model';
 import { normalizeRotation } from '../utils/geometry.utils';
@@ -62,6 +67,46 @@ export class ProjectStateService {
         layer.id === layerId ? { ...layer, ...patch } : layer,
       ),
     }));
+  }
+
+  addLayer(): Layer {
+    const layerIndex = this.project().layers.length + 1;
+    const layer: Layer = {
+      id: this.createId('layer'),
+      name: `Layer ${layerIndex}`,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      elements: [],
+    };
+
+    this.project.update((project) => ({
+      ...project,
+      layers: [...project.layers, layer],
+    }));
+    this.selectedLayerId.set(layer.id);
+    this.selectedElementId.set(null);
+    return layer;
+  }
+
+  addElementToSelectedLayer(
+    type: Exclude<DesignElementType, 'text' | 'polygon'>,
+  ): DesignElement | null {
+    const selectedLayerId = this.selectedLayerId() ?? this.project().layers[0]?.id;
+    if (!selectedLayerId) {
+      return null;
+    }
+
+    const element = this.createElement(type, selectedLayerId);
+    this.project.update((project) => ({
+      ...project,
+      layers: project.layers.map((layer) =>
+        layer.id === selectedLayerId ? { ...layer, elements: [...layer.elements, element] } : layer,
+      ),
+    }));
+    this.selectedLayerId.set(selectedLayerId);
+    this.selectedElementId.set(element.id);
+    return element;
   }
 
   updateCanvas(patch: Partial<CanvasSettings>): void {
@@ -143,6 +188,89 @@ export class ProjectStateService {
       }
     }
     return null;
+  }
+
+  private createElement(
+    type: Exclude<DesignElementType, 'text' | 'polygon'>,
+    layerId: string,
+  ): DesignElement {
+    const canvas = this.project().canvas;
+    const base = {
+      id: this.createId(type),
+      layerId,
+      name: this.createElementName(type),
+      mode: 'additive' as const,
+      x: Math.round(canvas.width / 2 - 15),
+      y: Math.round(canvas.height / 2 - 12),
+      rotation: 0,
+      visible: true,
+      locked: false,
+    };
+
+    switch (type) {
+      case 'rectangle':
+        return {
+          ...base,
+          type: 'rectangle',
+          width: 30,
+          height: 24,
+          radius: 2,
+          fill: '#faf7ef',
+          stroke: '#5e4b2f',
+          strokeWidth: 1,
+        };
+      case 'circle':
+        return {
+          ...base,
+          type: 'circle',
+          x: Math.round(canvas.width / 2),
+          y: Math.round(canvas.height / 2),
+          radius: 14,
+          fill: '#dfe9dc',
+          stroke: '#4f6b48',
+          strokeWidth: 1,
+        };
+      case 'triangle':
+        return {
+          ...base,
+          type: 'triangle',
+          width: 30,
+          height: 26,
+          fill: '#e9dfc8',
+          stroke: '#6e5a35',
+          strokeWidth: 1,
+        };
+      case 'gear':
+        return {
+          ...base,
+          type: 'gear',
+          x: Math.round(canvas.width / 2),
+          y: Math.round(canvas.height / 2),
+          discRadius: 16,
+          toothHeight: 5,
+          teeth: 12,
+          toothWidth: 55,
+          toothShape: 60,
+          fill: '#f2c469',
+          stroke: '#6e4d19',
+          strokeWidth: 1,
+          interactive: true,
+          currentRotation: 0,
+        };
+    }
+  }
+
+  private createElementName(type: DesignElementType): string {
+    const label = type[0].toUpperCase() + type.slice(1);
+    const count =
+      this.project()
+        .layers.flatMap((layer) => layer.elements)
+        .filter((element) => element.type === type).length + 1;
+    return `${label} ${count}`;
+  }
+
+  private createId(prefix: string): string {
+    return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
   }
 }
 

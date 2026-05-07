@@ -49,4 +49,27 @@ describe('ProjectStateService', () => {
     expect(state.findElement('card-body')).toBeNull();
     expect(state.selectedElementId()).toBeNull();
   });
+
+  it('adds a new layer and selects it', () => {
+    const state = new ProjectStateService();
+    const initialLayerCount = state.project().layers.length;
+
+    const layer = state.addLayer();
+
+    expect(state.project().layers).toHaveLength(initialLayerCount + 1);
+    expect(state.selectedLayerId()).toBe(layer.id);
+    expect(layer.elements).toHaveLength(0);
+  });
+
+  it('adds an element to the selected layer and selects it', () => {
+    const state = new ProjectStateService();
+
+    state.selectLayer('layer-top-card');
+    const element = state.addElementToSelectedLayer('rectangle');
+
+    expect(element?.type).toBe('rectangle');
+    expect(element?.layerId).toBe('layer-top-card');
+    expect(state.selectedElementId()).toBe(element?.id);
+    expect(state.findElement(element?.id ?? '')?.layer.id).toBe('layer-top-card');
+  });
 });

@@ -44,30 +44,81 @@
     />
 
     <div ngToolbar class="toolbar" aria-label="Editor toolbar">
-      <div ngToolbarWidgetGroup class="segmented">
+      <div ngToolbarWidgetGroup class="tool-group" aria-label="Create tools">
         <button
           ngToolbarWidget
-          value="edit"
+          value="add-layer"
           type="button"
-          [class.active]="state.mode() === 'edit'"
-          (click)="setMode('edit')"
+          class="toolbar-icon-button"
+          title="Add layer"
+          aria-label="Add layer"
+          (click)="addLayer()"
         >
-          Edit
+          <span class="material-symbols-outlined" aria-hidden="true">layers</span>
         </button>
         <button
           ngToolbarWidget
-          value="view"
+          value="add-rectangle"
           type="button"
-          [class.active]="state.mode() === 'view'"
-          (click)="setMode('view')"
+          class="toolbar-icon-button"
+          title="Add rectangle to current layer"
+          aria-label="Add rectangle to current layer"
+          (click)="addElement('rectangle')"
         >
-          View
+          <span class="material-symbols-outlined" aria-hidden="true">rectangle</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="add-circle"
+          type="button"
+          class="toolbar-icon-button"
+          title="Add circle to current layer"
+          aria-label="Add circle to current layer"
+          (click)="addElement('circle')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">circle</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="add-triangle"
+          type="button"
+          class="toolbar-icon-button"
+          title="Add triangle to current layer"
+          aria-label="Add triangle to current layer"
+          (click)="addElement('triangle')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">change_history</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="add-gear"
+          type="button"
+          class="toolbar-icon-button"
+          title="Add gear to current layer"
+          aria-label="Add gear to current layer"
+          (click)="addElement('gear')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">settings</span>
         </button>
       </div>
-      <button ngToolbarWidget value="yaml" type="button" (click)="refreshYaml()">
-        Refresh YAML
-      </button>
-      <button ngToolbarWidget value="svg" type="button" (click)="exportSvg()">Export SVG</button>
+      <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
+        <button
+          ngToolbarWidget
+          value="toggle-mode"
+          type="button"
+          class="toolbar-icon-button"
+          [class.active]="state.mode() === 'view'"
+          [title]="state.mode() === 'edit' ? 'Switch to view mode' : 'Switch to edit mode'"
+          [attr.aria-label]="
+            state.mode() === 'edit' ? 'Switch to view mode' : 'Switch to edit mode'
+          "
+          (click)="setMode(state.mode() === 'edit' ? 'view' : 'edit')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">{{
+            state.mode() === 'edit' ? 'edit' : 'visibility'
+          }}</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -111,8 +162,8 @@
                   : state.selectElement(node.element.id)
               "
             >
-              <span aria-hidden="true" class="tree-icon expand-icon">{{
-                node.kind === 'layer' ? '›' : ''
+              <span aria-hidden="true" class="tree-icon material-symbols-outlined expand-icon">{{
+                node.kind === 'layer' ? 'chevron_right' : ''
               }}</span>
               <span
                 aria-hidden="true"
