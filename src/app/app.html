@@ -115,24 +115,6 @@
           }
         </ul>
       </section>
-
-      <section #importExportSection class="panel-section">
-        <h2>Project YAML</h2>
-        <textarea
-          class="yaml-box"
-          [ngModel]="yamlText()"
-          (ngModelChange)="yamlText.set($event)"
-          spellcheck="false"
-        ></textarea>
-        @if (importError(); as error) {
-          <p class="error">{{ error }}</p>
-        }
-        <div class="button-row">
-          <button type="button" (click)="refreshYaml()">Export YAML</button>
-          <button type="button" (click)="importYaml()">Import YAML</button>
-          <button type="button" (click)="downloadYaml()">Download YAML</button>
-        </div>
-      </section>
     </aside>
 
     <section class="canvas-stage">
@@ -324,6 +306,28 @@
             @for (layer of state.visibleLayers(); track layer.id) {
               @for (element of layer.elements; track element.id) {
                 @if (isSelected(element)) {
+                  @if (isRectangle(element)) {
+                    <g class="resize-overlay" [attr.transform]="rectangleTransform(element)">
+                      <rect
+                        class="resize-outline"
+                        x="0"
+                        y="0"
+                        [attr.width]="element.width"
+                        [attr.height]="element.height"
+                      />
+                      @for (handle of resizeHandles; track handle) {
+                        <rect
+                          class="resize-handle"
+                          width="4"
+                          height="4"
+                          [attr.x]="resizeHandleX(element, handle) - 2"
+                          [attr.y]="resizeHandleY(element, handle) - 2"
+                          [style.cursor]="resizeCursor(handle)"
+                          (pointerdown)="onRectangleResizePointerDown($event, element, handle)"
+                        />
+                      }
+                    </g>
+                  }
                   <circle
                     class="selection-anchor"
                     [attr.cx]="element.x"
@@ -462,6 +466,48 @@
       </section>
     </aside>
   </section>
+
+  @if (isImportExportOpen()) {
+    <div class="dialog-backdrop" role="presentation" (click)="closeImportExport()">
+      <section
+        class="import-export-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="import-export-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="dialog-header">
+          <h2 id="import-export-title">Import/export</h2>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Close import/export"
+            (click)="closeImportExport()"
+          >
+            x
+          </button>
+        </header>
+
+        <textarea
+          class="yaml-box"
+          [ngModel]="yamlText()"
+          (ngModelChange)="yamlText.set($event)"
+          spellcheck="false"
+          aria-label="Project YAML"
+        ></textarea>
+        @if (importError(); as error) {
+          <p class="error">{{ error }}</p>
+        }
+        <div class="dialog-actions">
+          <button type="button" (click)="refreshYaml()">Export YAML</button>
+          <button type="button" (click)="importYaml()">Import YAML</button>
+          <button type="button" class="primary-button" (click)="downloadYaml()">
+            Download YAML
+          </button>
+        </div>
+      </section>
+    </div>
+  }
 
   @if (isPageSetupOpen()) {
     <div class="dialog-backdrop" role="presentation" (click)="closePageSetup()">

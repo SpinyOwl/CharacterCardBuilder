@@ -180,7 +180,7 @@ textarea {
 }
 
 .yaml-box {
-  min-height: 260px;
+  min-height: 420px;
   resize: vertical;
   font-family: 'Cascadia Mono', Consolas, monospace;
   font-size: 12px;
@@ -251,6 +251,25 @@ textarea {
   stroke-width: 1.2;
 }
 
+.resize-overlay {
+  pointer-events: none;
+}
+
+.resize-outline {
+  fill: none;
+  stroke: #d21f3c;
+  stroke-width: 0.9;
+  stroke-dasharray: 2 1.5;
+  pointer-events: none;
+}
+
+.resize-handle {
+  fill: #ffffff;
+  stroke: #d21f3c;
+  stroke-width: 0.8;
+  pointer-events: all;
+}
+
 .selection-anchor {
   fill: #d21f3c;
   stroke: #ffffff;
@@ -268,9 +287,9 @@ textarea {
   background: rgba(31, 37, 34, 0.36);
 }
 
-.page-setup-dialog {
+.page-setup-dialog,
+.import-export-dialog {
   box-sizing: border-box;
-  width: min(560px, 100%);
   max-height: calc(100vh - 32px);
   overflow: auto;
   padding: 20px;
@@ -279,6 +298,14 @@ textarea {
   background: #ffffff;
   box-shadow: 0 22px 60px rgba(18, 24, 32, 0.22);
   color: #172033;
+}
+
+.page-setup-dialog {
+  width: min(560px, 100%);
+}
+
+.import-export-dialog {
+  width: min(860px, 100%);
 }
 
 .dialog-header {

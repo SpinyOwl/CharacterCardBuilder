@@ -22,7 +22,16 @@ import { createGearPath } from './utils/gear.utils';
 
 type DragState =
   | { kind: 'move'; elementId: string; last: { x: number; y: number } }
-  | { kind: 'rotate'; elementId: string; lastAngle: number };
+  | { kind: 'rotate'; elementId: string; lastAngle: number }
+  | {
+      kind: 'resize-rectangle';
+      elementId: string;
+      handle: ResizeHandle;
+      startPointer: { x: number; y: number };
+      start: { x: number; y: number; width: number; height: number; rotation: number };
+    };
+
+type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
   A6: { width: 105, height: 148 },
@@ -62,8 +71,6 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
 })
 export class App {
   @ViewChild('scene', { static: false }) private readonly scene?: ElementRef<SVGSVGElement>;
-  @ViewChild('importExportSection', { static: false })
-  private readonly importExportSection?: ElementRef<HTMLElement>;
 
   readonly state = inject(ProjectStateService);
   private readonly importExport = inject(ImportExportService);
@@ -72,9 +79,11 @@ export class App {
   readonly yamlText = signal('');
   readonly importError = signal<string | null>(null);
   readonly isFileMenuOpen = signal(false);
+  readonly isImportExportOpen = signal(false);
   readonly isPageSetupOpen = signal(false);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
+  readonly resizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   readonly selectedLayerValues = computed(() => {
     const selectedLayerId = this.state.selectedLayerId();
     return selectedLayerId ? [selectedLayerId] : [];
@@ -157,9 +166,11 @@ export class App {
   showImportExport(): void {
     this.closeFileMenu();
     this.refreshYaml();
-    queueMicrotask(() =>
-      this.importExportSection?.nativeElement.scrollIntoView({ block: 'start' }),
-    );
+    this.isImportExportOpen.set(true);
+  }
+
+  closeImportExport(): void {
+    this.isImportExportOpen.set(false);
   }
 
   openPageSetup(): void {
@@ -307,6 +318,44 @@ export class App {
     };
   }
 
+  onRectangleResizePointerDown(
+    event: PointerEvent,
+    element: RectangleElement,
+    handle: ResizeHandle,
+  ): void {
+    event.stopPropagation();
+
+    if (this.state.mode() !== 'edit') {
+      return;
+    }
+
+    const found = this.state.findElement(element.id);
+    if (
+      !found ||
+      found.layer.locked ||
+      element.locked ||
+      !found.layer.visible ||
+      !element.visible
+    ) {
+      return;
+    }
+
+    this.state.selectElement(element.id);
+    this.dragState = {
+      kind: 'resize-rectangle',
+      elementId: element.id,
+      handle,
+      startPointer: this.pointerToSvgPoint(event),
+      start: {
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+        rotation: element.rotation,
+      },
+    };
+  }
+
   onGearViewPointerDown(event: PointerEvent, element: DesignElement): void {
     if (this.state.mode() !== 'view' || !isGearElement(element)) {
       return;
@@ -343,6 +392,12 @@ export class App {
         point.y - this.dragState.last.y,
       );
       this.dragState = { ...this.dragState, last: point };
+      this.refreshYaml();
+      return;
+    }
+
+    if (this.dragState.kind === 'resize-rectangle') {
+      this.resizeRectangleFromPointer(event, this.dragState);
       this.refreshYaml();
       return;
     }
@@ -415,6 +470,28 @@ export class App {
     return isGearElement(element);
   }
 
+  isRectangle(element: DesignElement): element is RectangleElement {
+    return isRectangleElement(element);
+  }
+
+  resizeHandleX(element: RectangleElement, handle: ResizeHandle): number {
+    if (handle.includes('w')) {
+      return 0;
+    }
+    return handle.includes('e') ? element.width : element.width / 2;
+  }
+
+  resizeHandleY(element: RectangleElement, handle: ResizeHandle): number {
+    if (handle.includes('n')) {
+      return 0;
+    }
+    return handle.includes('s') ? element.height : element.height / 2;
+  }
+
+  resizeCursor(handle: ResizeHandle): string {
+    return `${handle}-resize`;
+  }
+
   private patchSelected(patch: Partial<DesignElement>): void {
     const selectedElementId = this.state.selectedElementId();
     if (selectedElementId) {
@@ -442,6 +519,61 @@ export class App {
     const maxX = Math.max(...bounds.map((bound) => bound.maxX));
     const maxY = Math.max(...bounds.map((bound) => bound.maxY));
     return { width: maxX - minX, height: maxY - minY };
+  }
+
+  private resizeRectangleFromPointer(
+    event: PointerEvent,
+    dragState: Extract<DragState, { kind: 'resize-rectangle' }>,
+  ): void {
+    const found = this.state.findElement(dragState.elementId);
+    if (!found || !isRectangleElement(found.element)) {
+      return;
+    }
+
+    const point = this.pointerToSvgPoint(event);
+    const dx = point.x - dragState.startPointer.x;
+    const dy = point.y - dragState.startPointer.y;
+    const radians = (dragState.start.rotation * Math.PI) / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const localDx = dx * cos + dy * sin;
+    const localDy = -dx * sin + dy * cos;
+    const handle = dragState.handle;
+    const minSize = 2;
+
+    const requestedWidth =
+      handle.includes('e') || handle.includes('w')
+        ? dragState.start.width + (handle.includes('e') ? localDx : -localDx)
+        : dragState.start.width;
+    const requestedHeight =
+      handle.includes('n') || handle.includes('s')
+        ? dragState.start.height + (handle.includes('s') ? localDy : -localDy)
+        : dragState.start.height;
+    const width = Math.max(minSize, requestedWidth);
+    const height = Math.max(minSize, requestedHeight);
+
+    const centerShiftLocalX = handle.includes('e')
+      ? (width - dragState.start.width) / 2
+      : handle.includes('w')
+        ? (dragState.start.width - width) / 2
+        : 0;
+    const centerShiftLocalY = handle.includes('s')
+      ? (height - dragState.start.height) / 2
+      : handle.includes('n')
+        ? (dragState.start.height - height) / 2
+        : 0;
+
+    const centerX = dragState.start.x + dragState.start.width / 2;
+    const centerY = dragState.start.y + dragState.start.height / 2;
+    const shiftedCenterX = centerX + centerShiftLocalX * cos - centerShiftLocalY * sin;
+    const shiftedCenterY = centerY + centerShiftLocalX * sin + centerShiftLocalY * cos;
+
+    this.state.updateElement(dragState.elementId, {
+      x: shiftedCenterX - width / 2,
+      y: shiftedCenterY - height / 2,
+      width,
+      height,
+    } as Partial<RectangleElement>);
   }
 
   private elementBounds(element: DesignElement): {
