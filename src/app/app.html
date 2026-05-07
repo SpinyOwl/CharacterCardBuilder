@@ -114,50 +114,70 @@
               <span aria-hidden="true" class="tree-icon expand-icon">{{
                 node.kind === 'layer' ? '›' : ''
               }}</span>
-              <span aria-hidden="true" class="tree-icon">{{
-                node.kind === 'layer' ? '▣' : '□'
-              }}</span>
+              <span
+                aria-hidden="true"
+                class="tree-icon material-symbols-outlined element-type-icon"
+                [title]="node.kind === 'layer' ? 'Layer' : node.element.type"
+                >{{ node.kind === 'layer' ? 'layers' : elementTypeIcon(node.element.type) }}</span
+              >
               <span class="tree-name">{{ node.name }}</span>
-              <span class="tree-meta">{{
-                node.kind === 'layer' ? 'Layer' : node.element.type
-              }}</span>
 
               @if (node.kind === 'layer') {
                 <div class="tree-controls">
-                  <label title="Layer visible" (click)="$event.stopPropagation()">
-                    <input
-                      type="checkbox"
-                      [checked]="node.layer.visible"
-                      (change)="toggleLayerVisible(node.layer, $any($event.target).checked)"
-                    />
-                    Visible
-                  </label>
-                  <label title="Layer locked" (click)="$event.stopPropagation()">
-                    <input
-                      type="checkbox"
-                      [checked]="node.layer.locked"
-                      (change)="toggleLayerLocked(node.layer, $any($event.target).checked)"
-                    />
-                    Locked
-                  </label>
+                  <button
+                    type="button"
+                    class="tree-icon-button"
+                    [class.inactive]="!node.layer.visible"
+                    [title]="node.layer.visible ? 'Hide layer' : 'Show layer'"
+                    [attr.aria-label]="node.layer.visible ? 'Hide layer' : 'Show layer'"
+                    (click)="
+                      $event.stopPropagation(); toggleLayerVisible(node.layer, !node.layer.visible)
+                    "
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      node.layer.visible ? 'visibility' : 'visibility_off'
+                    }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button"
+                    [class.active]="node.layer.locked"
+                    [title]="node.layer.locked ? 'Unlock layer' : 'Lock layer'"
+                    [attr.aria-label]="node.layer.locked ? 'Unlock layer' : 'Lock layer'"
+                    (click)="
+                      $event.stopPropagation(); toggleLayerLocked(node.layer, !node.layer.locked)
+                    "
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      node.layer.locked ? 'lock' : 'lock_open'
+                    }}</span>
+                  </button>
                 </div>
               } @else {
                 <div class="tree-controls">
-                  <label title="Element visible" (click)="$event.stopPropagation()">
-                    <input
-                      type="checkbox"
-                      [checked]="node.element.visible"
-                      (change)="toggleElementVisible(node.element, $any($event.target).checked)"
-                    />
-                    Visible
-                  </label>
                   <button
                     type="button"
-                    class="danger-button"
+                    class="tree-icon-button"
+                    [class.inactive]="!node.element.visible"
+                    [title]="node.element.visible ? 'Hide element' : 'Show element'"
+                    [attr.aria-label]="node.element.visible ? 'Hide element' : 'Show element'"
+                    (click)="
+                      $event.stopPropagation();
+                      toggleElementVisible(node.element, !node.element.visible)
+                    "
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      node.element.visible ? 'visibility' : 'visibility_off'
+                    }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button danger-button"
                     title="Delete element"
+                    aria-label="Delete element"
                     (click)="$event.stopPropagation(); deleteElement(node.element)"
                   >
-                    Delete
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                   </button>
                 </div>
               }

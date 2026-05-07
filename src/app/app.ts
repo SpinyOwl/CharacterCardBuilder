@@ -5,7 +5,7 @@ import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
 import { Tree, TreeItem, TreeItemGroup } from '@angular/aria/tree';
 import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
-import { DesignElement } from './models/element.model';
+import { DesignElement, DesignElementType } from './models/element.model';
 import { Layer } from './models/layer.model';
 import { ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
@@ -321,6 +321,23 @@ export class App {
 
   elementTreeValue(elementId: string): string {
     return `element:${elementId}`;
+  }
+
+  elementTypeIcon(type: DesignElementType): string {
+    switch (type) {
+      case 'gear':
+        return 'settings';
+      case 'rectangle':
+        return 'rectangle';
+      case 'circle':
+        return 'circle';
+      case 'triangle':
+        return 'change_history';
+      case 'polygon':
+        return 'pentagon';
+      case 'text':
+        return 'text_fields';
+    }
   }
 
   toggleLayerLocked(layer: Layer, locked: boolean): void {

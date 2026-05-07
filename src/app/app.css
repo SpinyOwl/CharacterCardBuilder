@@ -152,7 +152,7 @@ textarea {
 
 .tree-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   min-height: 30px;
@@ -210,12 +210,6 @@ li[aria-expanded='false'] + ul[role='group'] {
   font-weight: 600;
 }
 
-.tree-meta {
-  color: #687067;
-  font-size: 11px;
-  text-transform: capitalize;
-}
-
 .tree-icon {
   width: 16px;
   color: #687067;
@@ -224,42 +218,59 @@ li[aria-expanded='false'] + ul[role='group'] {
   text-align: center;
 }
 
+.element-type-icon {
+  color: #506050;
+}
+
 .expand-icon {
   transition: transform 0.16s ease;
 }
 
 .tree-controls {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   align-items: center;
   margin-left: auto;
   white-space: nowrap;
 }
 
-.tree-controls label {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-  margin: 0;
-  font-size: 11px;
+.tree-icon-button {
+  display: grid;
+  width: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  place-items: center;
+  padding: 0;
+  border-color: transparent;
+  color: #4d584d;
+  background: transparent;
 }
 
-.tree-controls input {
-  width: auto;
+.tree-icon-button:hover,
+.tree-icon-button.active {
+  border-color: #c8d5c4;
+  background: #e5efe2;
 }
 
-.tree-controls button {
-  min-height: 24px;
-  padding: 0 7px;
-  font-size: 11px;
+.tree-icon-button.inactive {
+  color: #8b958b;
+}
+
+.material-symbols-outlined {
+  font-size: 18px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
 }
 
 .danger-button {
-  border-color: #b65a5a;
   color: #7a1f1f;
 }
 
 .danger-button:hover {
+  border-color: #e2b7b7;
   background: #f7e4e4;
 }
 
