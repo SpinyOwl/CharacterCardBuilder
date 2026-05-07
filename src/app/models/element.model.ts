@@ -27,39 +27,34 @@ export interface BaseElement {
   mode: ElementBooleanMode;
 }
 
-export interface RectangleElement extends BaseElement {
+export interface ShapeStyle {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  backgroundImage?: string;
+}
+
+export interface RectangleElement extends BaseElement, ShapeStyle {
   type: 'rectangle';
   width: number;
   height: number;
   radius?: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
-export interface CircleElement extends BaseElement {
+export interface CircleElement extends BaseElement, ShapeStyle {
   type: 'circle';
   radius: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
-export interface TriangleElement extends BaseElement {
+export interface TriangleElement extends BaseElement, ShapeStyle {
   type: 'triangle';
   width: number;
   height: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
-export interface PolygonElement extends BaseElement {
+export interface PolygonElement extends BaseElement, ShapeStyle {
   type: 'polygon';
   points: Point[];
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
 export interface TextElement extends BaseElement {
@@ -80,16 +75,13 @@ export interface GearLabel {
   rotation: number;
 }
 
-export interface GearElement extends BaseElement {
+export interface GearElement extends BaseElement, ShapeStyle {
   type: 'gear';
   discRadius: number;
   toothHeight: number;
   teeth: number;
   toothWidth: number;
   toothShape: number;
-  fill: string;
-  stroke: string;
-  strokeWidth: number;
   interactive: true;
   currentRotation: number;
   labels?: GearLabel[];
@@ -109,6 +101,13 @@ export type DesignElement =
   | GearElement
   | GroupElement;
 
+export type ShapeElement =
+  | RectangleElement
+  | CircleElement
+  | TriangleElement
+  | PolygonElement
+  | GearElement;
+
 export function isGearElement(element: DesignElement): element is GearElement {
   return element.type === 'gear';
 }
@@ -119,4 +118,14 @@ export function isRectangleElement(element: DesignElement): element is Rectangle
 
 export function isGroupElement(element: DesignElement): element is GroupElement {
   return element.type === 'group';
+}
+
+export function isShapeElement(element: DesignElement): element is ShapeElement {
+  return (
+    element.type === 'rectangle' ||
+    element.type === 'circle' ||
+    element.type === 'triangle' ||
+    element.type === 'polygon' ||
+    element.type === 'gear'
+  );
 }

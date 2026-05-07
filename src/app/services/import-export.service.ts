@@ -106,46 +106,37 @@ function assertElement(value: unknown): DesignElement {
     locked: value['locked'] === true,
     mode: value['mode'] === 'subtractive' ? 'subtractive' : 'additive',
   } as const;
-
   switch (value['type']) {
     case 'rectangle':
       return {
         ...base,
+        ...assertShapeStyle(value),
         type: 'rectangle',
         width: requiredNumber(value['width'], 'Rectangle width'),
         height: requiredNumber(value['height'], 'Rectangle height'),
         radius: typeof value['radius'] === 'number' ? value['radius'] : undefined,
-        fill: requiredString(value['fill'], 'Rectangle fill'),
-        stroke: requiredString(value['stroke'], 'Rectangle stroke'),
-        strokeWidth: requiredNumber(value['strokeWidth'], 'Rectangle strokeWidth'),
       };
     case 'circle':
       return {
         ...base,
+        ...assertShapeStyle(value),
         type: 'circle',
         radius: requiredNumber(value['radius'], 'Circle radius'),
-        fill: requiredString(value['fill'], 'Circle fill'),
-        stroke: requiredString(value['stroke'], 'Circle stroke'),
-        strokeWidth: requiredNumber(value['strokeWidth'], 'Circle strokeWidth'),
       };
     case 'triangle':
       return {
         ...base,
+        ...assertShapeStyle(value),
         type: 'triangle',
         width: requiredNumber(value['width'], 'Triangle width'),
         height: requiredNumber(value['height'], 'Triangle height'),
-        fill: requiredString(value['fill'], 'Triangle fill'),
-        stroke: requiredString(value['stroke'], 'Triangle stroke'),
-        strokeWidth: requiredNumber(value['strokeWidth'], 'Triangle strokeWidth'),
       };
     case 'polygon':
       return {
         ...base,
+        ...assertShapeStyle(value),
         type: 'polygon',
         points: Array.isArray(value['points']) ? value['points'].map(assertPoint) : [],
-        fill: requiredString(value['fill'], 'Polygon fill'),
-        stroke: requiredString(value['stroke'], 'Polygon stroke'),
-        strokeWidth: requiredNumber(value['strokeWidth'], 'Polygon strokeWidth'),
       };
     case 'text':
       return {
@@ -164,15 +155,13 @@ function assertElement(value: unknown): DesignElement {
     case 'gear':
       return {
         ...base,
+        ...assertShapeStyle(value),
         type: 'gear',
         discRadius: requiredNumber(value['discRadius'], 'Gear discRadius'),
         toothHeight: requiredNumber(value['toothHeight'], 'Gear toothHeight'),
         teeth: requiredNumber(value['teeth'], 'Gear teeth'),
         toothWidth: requiredNumber(value['toothWidth'], 'Gear toothWidth'),
         toothShape: requiredNumber(value['toothShape'], 'Gear toothShape'),
-        fill: requiredString(value['fill'], 'Gear fill'),
-        stroke: requiredString(value['stroke'], 'Gear stroke'),
-        strokeWidth: requiredNumber(value['strokeWidth'], 'Gear strokeWidth'),
         interactive: true,
         currentRotation:
           typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
@@ -195,6 +184,23 @@ function assertPoint(value: unknown): { x: number; y: number } {
   return {
     x: requiredNumber(value['x'], 'Point x'),
     y: requiredNumber(value['y'], 'Point y'),
+  };
+}
+
+function assertShapeStyle(value: Record<string, unknown>): {
+  fill: string;
+  stroke: string;
+  strokeWidth: number;
+  backgroundImage?: string;
+} {
+  return {
+    fill: requiredString(value['fill'], 'Shape fill'),
+    stroke: requiredString(value['stroke'], 'Shape stroke'),
+    strokeWidth: requiredNumber(value['strokeWidth'], 'Shape strokeWidth'),
+    backgroundImage:
+      typeof value['backgroundImage'] === 'string' && value['backgroundImage'].trim()
+        ? value['backgroundImage']
+        : undefined,
   };
 }
 

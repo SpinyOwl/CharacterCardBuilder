@@ -162,8 +162,17 @@ textarea {
   gap: 8px;
 }
 
+.inspector-group {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  margin: 0 0 12px;
+  border: 1px solid #d5ddd1;
+  border-radius: 5px;
+}
+
 .project-tree {
-  min-width: 100%;
+  width: 100%;
   padding: 0;
   margin: 0;
   list-style: none;
@@ -172,29 +181,15 @@ textarea {
 
 .tree-row {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  gap: 8px;
+  box-sizing: border-box;
+  grid-template-columns: 16px 16px minmax(0, 1fr) auto;
+  gap: 6px;
   align-items: center;
+  width: 100%;
   min-height: 30px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: 5px;
   cursor: pointer;
-}
-
-.tree-row.cdk-drag-preview {
-  box-sizing: border-box;
-  border: 1px solid #9da89c;
-  background: #ffffff;
-  box-shadow: 0 8px 18px rgba(24, 31, 27, 0.18);
-}
-
-.tree-row.cdk-drag-placeholder {
-  opacity: 0.3;
-}
-
-.tree-group.cdk-drop-list-dragging,
-.project-tree.cdk-drop-list-dragging {
-  background: rgba(227, 240, 223, 0.5);
 }
 
 [ngTreeItem]:focus,
@@ -221,7 +216,8 @@ li[aria-expanded='false'] + ul[role='group'] {
 }
 
 .tree-group {
-  padding: 0 0 0 26px;
+  width: 100%;
+  padding: 0 0 0 22px;
   margin: 0;
   list-style: none;
 }
@@ -264,7 +260,7 @@ li[aria-expanded='false'] + ul[role='group'] {
 
 .tree-controls {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   align-items: center;
   margin-left: auto;
   white-space: nowrap;
@@ -272,9 +268,9 @@ li[aria-expanded='false'] + ul[role='group'] {
 
 .tree-icon-button {
   display: grid;
-  width: 26px;
-  min-width: 26px;
-  min-height: 26px;
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
   place-items: center;
   padding: 0;
   border-color: transparent;

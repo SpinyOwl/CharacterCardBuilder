@@ -1,16 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { Component, ViewChild, computed, inject, signal } from '@angular/core';
-import { CdkDrag, CdkDragDrop, CdkDropList, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
 import { Tree, TreeItem, TreeItemGroup } from '@angular/aria/tree';
 import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
-import { DesignElement, DesignElementType, isGroupElement } from './models/element.model';
+import {
+  DesignElement,
+  DesignElementType,
+  ShapeElement,
+  isGroupElement,
+  isShapeElement,
+} from './models/element.model';
 import { Layer } from './models/layer.model';
 import { ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
-import { ElementContainer, ProjectStateService } from './services/project-state.service';
+import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
@@ -49,14 +54,11 @@ type ProjectTreeNode =
       children: ProjectTreeNode[];
     };
 
-type ProjectDropContainer = { kind: 'root' } | ElementContainer;
-
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
-    DragDropModule,
     FormsModule,
     MenuBar,
     MenuItem,
@@ -86,12 +88,6 @@ export class App {
   readonly isPageSetupOpen = signal(false);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
-  readonly rootDropContainer: ProjectDropContainer = { kind: 'root' };
-  readonly canEnterProjectDrop = (
-    drag: CdkDrag<ProjectTreeNode>,
-    drop: CdkDropList<ProjectDropContainer>,
-  ): boolean =>
-    drop.data.kind === 'root' ? drag.data.kind === 'layer' : drag.data.kind === 'element';
   readonly selectedProjectTreeValues = computed(() => {
     const selectedElementId = this.state.selectedElementId();
     if (selectedElementId) {
@@ -300,33 +296,6 @@ export class App {
     }
   }
 
-  onProjectTreeDrop(
-    event: CdkDragDrop<ProjectDropContainer, ProjectDropContainer, ProjectTreeNode>,
-  ): void {
-    const node = event.item.data;
-    const source = event.previousContainer.data;
-    const target = event.container.data;
-
-    if (target.kind === 'root') {
-      if (node.kind === 'layer' && source.kind === 'root') {
-        this.state.reorderLayer(event.previousIndex, event.currentIndex);
-        this.refreshYaml();
-      }
-      return;
-    }
-
-    if (node.kind !== 'element') {
-      return;
-    }
-
-    if (this.sameDropContainer(source, target)) {
-      this.state.reorderElements(target, event.previousIndex, event.currentIndex);
-    } else {
-      this.state.moveElementToContainer(node.element.id, target, event.currentIndex);
-    }
-    this.refreshYaml();
-  }
-
   toggleLayerVisible(layer: Layer, visible: boolean): void {
     this.state.updateLayer(layer.id, { visible });
     if (!visible && this.state.selectedLayerId() === layer.id) {
@@ -383,18 +352,12 @@ export class App {
     }
   }
 
-  childDropContainer(node: ProjectTreeNode): ProjectDropContainer {
-    return node.kind === 'layer'
-      ? { kind: 'layer', layerId: node.layer.id }
-      : { kind: 'group', groupId: node.element.id };
-  }
-
   addLayer(): void {
     this.state.addLayer();
     this.refreshYaml();
   }
 
-  addElement(type: Exclude<DesignElementType, 'text' | 'polygon'>): void {
+  addElement(type: Exclude<DesignElementType, 'polygon'>): void {
     this.state.addElementToSelectedLayer(type);
     this.refreshYaml();
   }
@@ -412,20 +375,6 @@ export class App {
     };
   }
 
-  private sameDropContainer(first: ProjectDropContainer, second: ProjectDropContainer): boolean {
-    if (first.kind !== second.kind) {
-      return false;
-    }
-    switch (first.kind) {
-      case 'root':
-        return true;
-      case 'layer':
-        return first.layerId === (second as ElementContainer & { kind: 'layer' }).layerId;
-      case 'group':
-        return first.groupId === (second as ElementContainer & { kind: 'group' }).groupId;
-    }
-  }
-
   toggleLayerLocked(layer: Layer, locked: boolean): void {
     this.state.updateLayer(layer.id, { locked });
     if (locked && this.state.selectedLayerId() === layer.id) {
@@ -435,10 +384,21 @@ export class App {
   }
 
   updateSelectedString(
-    property: 'name' | 'fill' | 'stroke' | 'text' | 'fontFamily',
+    property:
+      | 'name'
+      | 'fill'
+      | 'stroke'
+      | 'text'
+      | 'fontFamily'
+      | 'fontWeight'
+      | 'backgroundImage',
     value: string,
   ): void {
     this.patchSelected({ [property]: value } as Partial<DesignElement>);
+  }
+
+  updateSelectedOptionalString(property: 'backgroundImage', value: string): void {
+    this.patchSelected({ [property]: value.trim() || undefined } as Partial<DesignElement>);
   }
 
   updateSelectedNumber(property: string, rawValue: string | number): void {
@@ -450,6 +410,14 @@ export class App {
 
   updateSelectedMode(mode: 'additive' | 'subtractive'): void {
     this.patchSelected({ mode } as Partial<DesignElement>);
+  }
+
+  updateSelectedTextAlign(align: 'start' | 'middle' | 'end'): void {
+    this.patchSelected({ align } as Partial<DesignElement>);
+  }
+
+  isShapeElement(element: DesignElement): element is ShapeElement {
+    return isShapeElement(element);
   }
 
   private patchSelected(patch: Partial<DesignElement>): void {

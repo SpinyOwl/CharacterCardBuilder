@@ -8,6 +8,7 @@ import {
   isGearElement,
   isGroupElement,
   isRectangleElement,
+  isShapeElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { ProjectStateService } from '../services/project-state.service';
@@ -177,6 +178,18 @@ export class CanvasStageComponent {
     return `mask-${layer.id}`;
   }
 
+  backgroundPatternId(element: DesignElement): string {
+    return `background-${element.id}`;
+  }
+
+  shapeFill(element: DesignElement): string | null {
+    return isShapeElement(element)
+      ? element.backgroundImage
+        ? `url(#${this.backgroundPatternId(element)})`
+        : element.fill
+      : null;
+  }
+
   elementTransform(element: DesignElement, includeRuntimeRotation = false): string {
     const rotation =
       element.rotation +
@@ -205,12 +218,23 @@ export class CanvasStageComponent {
     return `translate(${element.x + element.width / 2} ${element.y + element.height / 2}) rotate(${element.rotation}) translate(${-element.width / 2} ${-element.height / 2})`;
   }
 
+  renderTransform(element: DesignElement): string {
+    return element.type === 'rectangle'
+      ? this.rectangleTransform(element)
+      : this.elementTransform(element, true);
+  }
+
   isAdditiveVisible(element: DesignElement): boolean {
     return element.visible && element.mode === 'additive' && !isGroupElement(element);
   }
 
-  isSubtractiveRectangle(element: DesignElement): element is RectangleElement {
-    return element.visible && element.mode === 'subtractive' && isRectangleElement(element);
+  isSubtractivePathElement(element: DesignElement): boolean {
+    return (
+      element.visible &&
+      element.mode === 'subtractive' &&
+      !isGroupElement(element) &&
+      this.elementPath(element) !== ''
+    );
   }
 
   isSelected(element: DesignElement): boolean {

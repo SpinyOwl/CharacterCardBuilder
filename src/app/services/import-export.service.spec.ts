@@ -25,6 +25,25 @@ describe('ImportExportService', () => {
     ).toBe(true);
   });
 
+  it('preserves shape background images', () => {
+    const service = new ImportExportService();
+    const project = createDefaultProject();
+    const cardBody = project.layers
+      .flatMap((layer) => layer.elements)
+      .find((element) => element.id === 'card-body');
+    if (cardBody?.type === 'rectangle') {
+      cardBody.backgroundImage = 'data:image/png;base64,abc123';
+    }
+
+    const imported = service.importYaml(service.exportYaml(project));
+    const importedCardBody = imported.layers
+      .flatMap((layer) => layer.elements)
+      .find((element) => element.id === 'card-body');
+
+    expect(importedCardBody?.type === 'rectangle' ? importedCardBody.backgroundImage : undefined)
+      .toBe('data:image/png;base64,abc123');
+  });
+
   it('YAML import preserves grouped child elements', () => {
     const service = new ImportExportService();
     const project = createDefaultProject();

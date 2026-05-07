@@ -102,6 +102,17 @@
         </button>
         <button
           ngToolbarWidget
+          value="add-text"
+          type="button"
+          class="toolbar-icon-button"
+          title="Add text to current layer or group"
+          aria-label="Add text to current layer or group"
+          (click)="addElement('text')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">text_fields</span>
+        </button>
+        <button
+          ngToolbarWidget
           value="add-group"
           type="button"
           class="toolbar-icon-button"
@@ -135,18 +146,14 @@
 
   <section class="workspace">
     <aside class="panel left-panel">
-      <section class="panel-section" cdkDropListGroup>
+      <section class="panel-section">
         <h2>Layers</h2>
         <ul
           ngTree
           #projectTree="ngTree"
-          cdkDropList
           class="project-tree"
           [values]="selectedProjectTreeValues()"
-          [cdkDropListData]="rootDropContainer"
-          [cdkDropListEnterPredicate]="canEnterProjectDrop"
           (valuesChange)="onProjectTreeSelectionChange($event)"
-          (cdkDropListDropped)="onProjectTreeDrop($event)"
           aria-label="Project outline"
           selectionMode="follow"
         >
@@ -160,12 +167,9 @@
           @for (node of nodes; track node.value) {
             <li
               ngTreeItem
-              cdkDrag
               [parent]="parent"
               [value]="node.value"
               [label]="node.name"
-              [cdkDragData]="node"
-              [cdkDragDisabled]="node.kind === 'element' && node.element.locked"
               [(expanded)]="node.expanded"
               #treeItem="ngTreeItem"
               class="tree-row"
@@ -184,17 +188,15 @@
               <span
                 aria-hidden="true"
                 class="tree-icon material-symbols-outlined expand-icon"
-                cdkDragHandle
                 >{{ node.children.length > 0 ? 'chevron_right' : '' }}</span
               >
               <span
                 aria-hidden="true"
                 class="tree-icon material-symbols-outlined element-type-icon"
                 [title]="node.kind === 'layer' ? 'Layer' : node.element.type"
-                cdkDragHandle
                 >{{ node.kind === 'layer' ? 'layers' : elementTypeIcon(node.element.type) }}</span
               >
-              <span class="tree-name" cdkDragHandle>{{ node.name }}</span>
+              <span class="tree-name">{{ node.name }}</span>
 
               @if (node.kind === 'layer') {
                 <div class="tree-controls">
@@ -279,10 +281,6 @@
               <ul
                 role="group"
                 class="tree-group"
-                cdkDropList
-                [cdkDropListData]="childDropContainer(node)"
-                [cdkDropListEnterPredicate]="canEnterProjectDrop"
-                (cdkDropListDropped)="onProjectTreeDrop($event)"
               >
                 <ng-template ngTreeItemGroup [ownedBy]="treeItem" #group="ngTreeItemGroup">
                   <ng-template
@@ -348,6 +346,49 @@
             </select>
           </label>
 
+          @if (isShapeElement(selected)) {
+            <fieldset class="inspector-group">
+              <legend>Shape style</legend>
+              <div class="field-grid">
+                <label>
+                  Background
+                  <input
+                    type="color"
+                    [ngModel]="selected.fill"
+                    (ngModelChange)="updateSelectedString('fill', $event)"
+                  />
+                </label>
+                <label>
+                  Stroke
+                  <input
+                    type="color"
+                    [ngModel]="selected.stroke"
+                    (ngModelChange)="updateSelectedString('stroke', $event)"
+                  />
+                </label>
+                <label>
+                  Stroke thickness
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    [ngModel]="selected.strokeWidth"
+                    (ngModelChange)="updateSelectedNumber('strokeWidth', $event)"
+                  />
+                </label>
+              </div>
+              <label>
+                Background image
+                <input
+                  type="text"
+                  [ngModel]="selected.backgroundImage ?? ''"
+                  placeholder="Image URL or data URL"
+                  (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
+                />
+              </label>
+            </fieldset>
+          }
+
           @switch (selected.type) {
             @case ('rectangle') {
               <div class="field-grid">
@@ -405,6 +446,71 @@
                     (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
                 /></label>
               </div>
+            }
+            @case ('text') {
+              <fieldset class="inspector-group">
+                <legend>Text style</legend>
+                <label>
+                  Text
+                  <input
+                    type="text"
+                    [ngModel]="selected.text"
+                    (ngModelChange)="updateSelectedString('text', $event)"
+                  />
+                </label>
+                <div class="field-grid">
+                  <label>
+                    Color
+                    <input
+                      type="color"
+                      [ngModel]="selected.fill"
+                      (ngModelChange)="updateSelectedString('fill', $event)"
+                    />
+                  </label>
+                  <label>
+                    Size
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      [ngModel]="selected.fontSize"
+                      (ngModelChange)="updateSelectedNumber('fontSize', $event)"
+                    />
+                  </label>
+                  <label>
+                    Weight
+                    <select
+                      [ngModel]="selected.fontWeight"
+                      (ngModelChange)="updateSelectedString('fontWeight', $event)"
+                    >
+                      <option value="300">Light</option>
+                      <option value="400">Regular</option>
+                      <option value="600">Semi-bold</option>
+                      <option value="700">Bold</option>
+                      <option value="900">Black</option>
+                    </select>
+                  </label>
+                  <label>
+                    Align
+                    <select
+                      [ngModel]="selected.align"
+                      (ngModelChange)="updateSelectedTextAlign($event)"
+                    >
+                      <option value="start">Left</option>
+                      <option value="middle">Center</option>
+                      <option value="end">Right</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  Font family
+                  <input
+                    type="text"
+                    [ngModel]="selected.fontFamily"
+                    (ngModelChange)="updateSelectedString('fontFamily', $event)"
+                  />
+                </label>
+              </fieldset>
             }
             @case ('group') {
               <p class="muted">Group contains {{ selected.elements.length }} item(s).</p>

@@ -36,6 +36,28 @@
 
     <defs>
       @for (layer of state.visibleLayers(); track layer.id) {
+        @for (element of allElements(layer.elements); track element.id) {
+          @if ('backgroundImage' in element && element.backgroundImage) {
+            <pattern
+              [attr.id]="backgroundPatternId(element)"
+              patternUnits="objectBoundingBox"
+              width="1"
+              height="1"
+            >
+              <image
+                x="0"
+                y="0"
+                width="1"
+                height="1"
+                preserveAspectRatio="none"
+                [attr.href]="element.backgroundImage"
+              />
+            </pattern>
+          }
+        }
+      }
+
+      @for (layer of state.visibleLayers(); track layer.id) {
         <mask [attr.id]="layerMaskId(layer)" maskUnits="userSpaceOnUse">
           <rect
             x="0"
@@ -45,10 +67,10 @@
             fill="#ffffff"
           />
           @for (element of allElements(layer.elements); track element.id) {
-            @if (isSubtractiveRectangle(element)) {
+            @if (isSubtractivePathElement(element)) {
               <path
                 [attr.d]="elementPath(element)"
-                [attr.transform]="rectangleTransform(element)"
+                [attr.transform]="renderTransform(element)"
                 fill="#000000"
               />
             }
@@ -64,11 +86,7 @@
             <g
               class="element"
               [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
-              [attr.transform]="
-                element.type === 'rectangle'
-                  ? rectangleTransform($any(element))
-                  : elementTransform(element, true)
-              "
+              [attr.transform]="renderTransform(element)"
               (pointerdown)="
                 state.mode() === 'view' && isGear(element)
                   ? onGearViewPointerDown($event, element)
@@ -80,7 +98,7 @@
                 @case ('rectangle') {
                   <path
                     [attr.d]="elementPath(element)"
-                    [attr.fill]="element.fill"
+                    [attr.fill]="shapeFill(element)"
                     [attr.stroke]="element.stroke"
                     [attr.stroke-width]="element.strokeWidth"
                   />
@@ -90,7 +108,7 @@
                     cx="0"
                     cy="0"
                     [attr.r]="element.radius"
-                    [attr.fill]="element.fill"
+                    [attr.fill]="shapeFill(element)"
                     [attr.stroke]="element.stroke"
                     [attr.stroke-width]="element.strokeWidth"
                   />
@@ -98,7 +116,7 @@
                 @case ('triangle') {
                   <path
                     [attr.d]="elementPath(element)"
-                    [attr.fill]="element.fill"
+                    [attr.fill]="shapeFill(element)"
                     [attr.stroke]="element.stroke"
                     [attr.stroke-width]="element.strokeWidth"
                   />
@@ -106,7 +124,7 @@
                 @case ('polygon') {
                   <path
                     [attr.d]="elementPath(element)"
-                    [attr.fill]="element.fill"
+                    [attr.fill]="shapeFill(element)"
                     [attr.stroke]="element.stroke"
                     [attr.stroke-width]="element.strokeWidth"
                   />
@@ -114,7 +132,7 @@
                 @case ('gear') {
                   <path
                     [attr.d]="elementPath(element)"
-                    [attr.fill]="element.fill"
+                    [attr.fill]="shapeFill(element)"
                     [attr.stroke]="element.stroke"
                     [attr.stroke-width]="element.strokeWidth"
                   />
@@ -168,12 +186,12 @@
       @if (state.mode() === 'edit') {
         <g data-editor-helper="true">
           @for (element of allElements(layer.elements); track element.id) {
-            @if (isSubtractiveRectangle(element)) {
+            @if (isSubtractivePathElement(element)) {
               <path
                 class="subtractive-outline"
                 [class.selected-outline]="isSelected(element)"
                 [attr.d]="elementPath(element)"
-                [attr.transform]="rectangleTransform(element)"
+                [attr.transform]="renderTransform(element)"
                 (pointerdown)="onElementPointerDown($event, element, layer)"
               />
             }

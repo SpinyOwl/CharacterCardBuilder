@@ -105,7 +105,11 @@ export class ProjectStateService {
 
   moveElementToContainer(elementId: string, target: ElementContainer, targetIndex: number): void {
     const found = this.findElement(elementId);
-    if (!found || (isGroupElement(found.element) && isDescendant(found.element, target))) {
+    if (
+      !found ||
+      found.element.locked ||
+      (isGroupElement(found.element) && isDescendant(found.element, target))
+    ) {
       return;
     }
 
@@ -155,9 +159,7 @@ export class ProjectStateService {
     return layer;
   }
 
-  addElementToSelectedLayer(
-    type: Exclude<DesignElementType, 'text' | 'polygon'>,
-  ): DesignElement | null {
+  addElementToSelectedLayer(type: Exclude<DesignElementType, 'polygon'>): DesignElement | null {
     const selectedLayerId = this.selectedLayerId() ?? this.project().layers[0]?.id;
     if (!selectedLayerId) {
       return null;
@@ -276,10 +278,7 @@ export class ProjectStateService {
     return null;
   }
 
-  private createElement(
-    type: Exclude<DesignElementType, 'text' | 'polygon'>,
-    layerId: string,
-  ): DesignElement {
+  private createElement(type: Exclude<DesignElementType, 'polygon'>, layerId: string): DesignElement {
     const canvas = this.project().canvas;
     const base = {
       id: this.createId(type),
@@ -342,6 +341,19 @@ export class ProjectStateService {
           strokeWidth: 1,
           interactive: true,
           currentRotation: 0,
+        };
+      case 'text':
+        return {
+          ...base,
+          type: 'text',
+          x: Math.round(canvas.width / 2),
+          y: Math.round(canvas.height / 2),
+          text: 'Text',
+          fontSize: 8,
+          fontFamily: 'Arial, sans-serif',
+          fontWeight: '400',
+          fill: '#2f332f',
+          align: 'middle',
         };
       case 'group':
         return {

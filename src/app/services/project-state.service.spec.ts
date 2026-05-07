@@ -98,6 +98,24 @@ describe('ProjectStateService', () => {
     expect(state.findElement(element?.id ?? '')?.layer.id).toBe('layer-top-card');
   });
 
+  it('adds a text element with editable font defaults', () => {
+    const state = new ProjectStateService();
+
+    state.selectLayer('layer-top-card');
+    const element = state.addElementToSelectedLayer('text');
+
+    expect(element).toMatchObject({
+      type: 'text',
+      text: 'Text',
+      fontSize: 8,
+      fontFamily: 'Arial, sans-serif',
+      fontWeight: '400',
+      fill: '#2f332f',
+      align: 'middle',
+    });
+    expect(state.selectedElementId()).toBe(element?.id);
+  });
+
   it('adds elements to the selected group', () => {
     const state = new ProjectStateService();
 
@@ -130,6 +148,15 @@ describe('ProjectStateService', () => {
 
     expect(state.project().layers[0].elements[0].id).toBe('card-body');
     expect(state.findElement('card-body')?.layer.id).toBe('layer-bottom-disc');
+  });
+
+  it('does not move locked elements between containers', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('card-body', { locked: true });
+    state.moveElementToContainer('card-body', { kind: 'layer', layerId: 'layer-bottom-disc' }, 0);
+
+    expect(state.findElement('card-body')?.layer.id).toBe('layer-top-card');
   });
 
   it('reorders elements inside a group', () => {
