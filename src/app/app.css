@@ -142,40 +142,125 @@ textarea {
   gap: 8px;
 }
 
-.layer-tree {
-  display: grid;
-  gap: 6px;
+.project-tree {
+  min-width: 100%;
   padding: 0;
+  margin: 0;
+  list-style: none;
+  user-select: none;
+}
+
+.tree-row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+[ngTreeItem]:focus,
+[ngTreeItem]:hover {
+  background: #edf5ea;
+}
+
+[ngTreeItem]:focus {
+  outline: 1px solid #638a56;
+  outline-offset: -1px;
+}
+
+[ngTreeItem][aria-selected='true'] {
+  color: #315f28;
+  background: #e3f0df;
+}
+
+[ngTreeItem][aria-expanded='true'] .expand-icon {
+  transform: rotate(90deg);
+}
+
+li[aria-expanded='false'] + ul[role='group'] {
+  display: none;
+}
+
+.tree-group {
+  padding: 0 0 0 26px;
   margin: 0;
   list-style: none;
 }
 
-.layer-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 8px;
+.element-row {
+  grid-template-columns: 16px auto minmax(0, 1fr) auto auto;
+}
+
+.muted-row {
+  opacity: 0.62;
+}
+
+.tree-name {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.element-row .tree-name {
+  font-weight: 600;
+}
+
+.tree-meta {
+  color: #687067;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.tree-icon {
+  width: 16px;
+  color: #687067;
+  font-size: 16px;
+  line-height: 1;
+  text-align: center;
+}
+
+.expand-icon {
+  transition: transform 0.16s ease;
+}
+
+.tree-controls {
+  display: flex;
+  gap: 4px;
   align-items: center;
-  padding: 7px;
-  border: 1px solid #d1d8cc;
-  border-radius: 6px;
-  background: #ffffff;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
-.layer-row.selected {
-  border-color: #638a56;
-  background: #edf5ea;
-}
-
-.layer-row label {
+.tree-controls label {
   display: flex;
   gap: 4px;
   align-items: center;
   margin: 0;
-  white-space: nowrap;
+  font-size: 11px;
 }
 
-.layer-row input {
+.tree-controls input {
   width: auto;
+}
+
+.tree-controls button {
+  min-height: 24px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.danger-button {
+  border-color: #b65a5a;
+  color: #7a1f1f;
+}
+
+.danger-button:hover {
+  background: #f7e4e4;
 }
 
 .yaml-box {

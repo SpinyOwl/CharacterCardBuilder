@@ -90,6 +90,20 @@ export class ProjectStateService {
     }));
   }
 
+  deleteElement(elementId: string): void {
+    this.project.update((project) => ({
+      ...project,
+      layers: project.layers.map((layer) => ({
+        ...layer,
+        elements: layer.elements.filter((element) => element.id !== elementId),
+      })),
+    }));
+
+    if (this.selectedElementId() === elementId) {
+      this.selectedElementId.set(null);
+    }
+  }
+
   moveElementInEditMode(elementId: string, dx: number, dy: number): void {
     if (this.mode() !== 'edit') {
       return;

@@ -39,4 +39,14 @@ describe('ProjectStateService', () => {
     expect(selectableIds).not.toContain('gear-main');
     expect(selectableIds).toContain('card-body');
   });
+
+  it('deletes an element and clears matching selection', () => {
+    const state = new ProjectStateService();
+
+    state.selectElement('card-body');
+    state.deleteElement('card-body');
+
+    expect(state.findElement('card-body')).toBeNull();
+    expect(state.selectedElementId()).toBeNull();
+  });
 });

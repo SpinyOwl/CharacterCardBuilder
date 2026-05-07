@@ -3,7 +3,7 @@ import { Component, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
-import { Tree, TreeItem } from '@angular/aria/tree';
+import { Tree, TreeItem, TreeItemGroup } from '@angular/aria/tree';
 import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
 import { DesignElement } from './models/element.model';
 import { Layer } from './models/layer.model';
@@ -30,6 +30,23 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
   showPageBorder: true,
 };
 
+type ProjectTreeNode =
+  | {
+      kind: 'layer';
+      name: string;
+      value: string;
+      layer: Layer;
+      children: ProjectTreeNode[];
+      expanded: boolean;
+    }
+  | {
+      kind: 'element';
+      name: string;
+      value: string;
+      element: DesignElement;
+      expanded?: boolean;
+    };
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -43,6 +60,7 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
     ToolbarWidgetGroup,
     Tree,
     TreeItem,
+    TreeItemGroup,
     CanvasStageComponent,
   ],
   templateUrl: './app.html',
@@ -63,10 +81,30 @@ export class App {
   readonly isPageSetupOpen = signal(false);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
-  readonly selectedLayerValues = computed(() => {
+  readonly selectedProjectTreeValues = computed(() => {
+    const selectedElementId = this.state.selectedElementId();
+    if (selectedElementId) {
+      return [this.elementTreeValue(selectedElementId)];
+    }
+
     const selectedLayerId = this.state.selectedLayerId();
-    return selectedLayerId ? [selectedLayerId] : [];
+    return selectedLayerId ? [this.layerTreeValue(selectedLayerId)] : [];
   });
+  readonly projectTreeNodes = computed<ProjectTreeNode[]>(() =>
+    this.state.project().layers.map((layer) => ({
+      kind: 'layer',
+      name: layer.name,
+      value: this.layerTreeValue(layer.id),
+      layer,
+      expanded: true,
+      children: layer.elements.map((element) => ({
+        kind: 'element',
+        name: element.name,
+        value: this.elementTreeValue(element.id),
+        element,
+      })),
+    })),
+  );
   readonly visibleDesignBounds = computed(() => this.measureVisibleDesignBounds());
   readonly approxPaperLabel = computed(() => {
     const bounds = this.visibleDesignBounds();
@@ -237,8 +275,23 @@ export class App {
     return Number.isInteger(value) ? String(value) : value.toFixed(1);
   }
 
-  onLayerSelectionChange(values: string[]): void {
-    this.state.selectLayer(values[0] ?? null);
+  onProjectTreeSelectionChange(values: string[]): void {
+    const value = values[0] ?? null;
+    if (!value) {
+      this.state.selectLayer(null);
+      this.state.selectElement(null);
+      return;
+    }
+
+    if (value.startsWith('layer:')) {
+      this.state.selectLayer(value.slice('layer:'.length));
+      this.state.selectElement(null);
+      return;
+    }
+
+    if (value.startsWith('element:')) {
+      this.state.selectElement(value.slice('element:'.length));
+    }
   }
 
   toggleLayerVisible(layer: Layer, visible: boolean): void {
@@ -247,6 +300,27 @@ export class App {
       this.state.selectElement(null);
     }
     this.refreshYaml();
+  }
+
+  toggleElementVisible(element: DesignElement, visible: boolean): void {
+    this.state.updateElement(element.id, { visible } as Partial<DesignElement>);
+    if (!visible && this.state.selectedElementId() === element.id) {
+      this.state.selectElement(null);
+    }
+    this.refreshYaml();
+  }
+
+  deleteElement(element: DesignElement): void {
+    this.state.deleteElement(element.id);
+    this.refreshYaml();
+  }
+
+  layerTreeValue(layerId: string): string {
+    return `layer:${layerId}`;
+  }
+
+  elementTreeValue(elementId: string): string {
+    return `element:${elementId}`;
   }
 
   toggleLayerLocked(layer: Layer, locked: boolean): void {

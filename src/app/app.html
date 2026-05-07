@@ -77,43 +77,104 @@
         <h2>Layers</h2>
         <ul
           ngTree
-          #layerTree="ngTree"
-          class="layer-tree"
-          [values]="selectedLayerValues()"
-          (valuesChange)="onLayerSelectionChange($event)"
-          aria-label="Project layers"
+          #projectTree="ngTree"
+          class="project-tree"
+          [values]="selectedProjectTreeValues()"
+          (valuesChange)="onProjectTreeSelectionChange($event)"
+          aria-label="Project outline"
+          selectionMode="follow"
         >
-          @for (layer of state.project().layers; track layer.id) {
+          <ng-template
+            [ngTemplateOutlet]="projectTreeTemplate"
+            [ngTemplateOutletContext]="{ nodes: projectTreeNodes(), parent: projectTree }"
+          />
+        </ul>
+
+        <ng-template #projectTreeTemplate let-nodes="nodes" let-parent="parent">
+          @for (node of nodes; track node.value) {
             <li
               ngTreeItem
-              [parent]="layerTree"
-              [value]="layer.id"
-              [label]="layer.name"
-              [disabled]="!layer.visible"
-              class="layer-row"
-              [class.selected]="state.selectedLayerId() === layer.id"
-              (click)="state.selectLayer(layer.id)"
+              [parent]="parent"
+              [value]="node.value"
+              [label]="node.name"
+              [(expanded)]="node.expanded"
+              #treeItem="ngTreeItem"
+              class="tree-row"
+              [class.layer-row]="node.kind === 'layer'"
+              [class.element-row]="node.kind === 'element'"
+              [class.muted-row]="
+                node.kind === 'layer' ? !node.layer.visible : !node.element.visible
+              "
+              (click)="
+                node.kind === 'layer'
+                  ? state.selectLayer(node.layer.id)
+                  : state.selectElement(node.element.id)
+              "
             >
-              <span class="layer-name">{{ layer.name }}</span>
-              <label title="Layer visible">
-                <input
-                  type="checkbox"
-                  [checked]="layer.visible"
-                  (change)="toggleLayerVisible(layer, $any($event.target).checked)"
-                />
-                Visible
-              </label>
-              <label title="Layer locked">
-                <input
-                  type="checkbox"
-                  [checked]="layer.locked"
-                  (change)="toggleLayerLocked(layer, $any($event.target).checked)"
-                />
-                Locked
-              </label>
+              <span aria-hidden="true" class="tree-icon expand-icon">{{
+                node.kind === 'layer' ? '›' : ''
+              }}</span>
+              <span aria-hidden="true" class="tree-icon">{{
+                node.kind === 'layer' ? '▣' : '□'
+              }}</span>
+              <span class="tree-name">{{ node.name }}</span>
+              <span class="tree-meta">{{
+                node.kind === 'layer' ? 'Layer' : node.element.type
+              }}</span>
+
+              @if (node.kind === 'layer') {
+                <div class="tree-controls">
+                  <label title="Layer visible" (click)="$event.stopPropagation()">
+                    <input
+                      type="checkbox"
+                      [checked]="node.layer.visible"
+                      (change)="toggleLayerVisible(node.layer, $any($event.target).checked)"
+                    />
+                    Visible
+                  </label>
+                  <label title="Layer locked" (click)="$event.stopPropagation()">
+                    <input
+                      type="checkbox"
+                      [checked]="node.layer.locked"
+                      (change)="toggleLayerLocked(node.layer, $any($event.target).checked)"
+                    />
+                    Locked
+                  </label>
+                </div>
+              } @else {
+                <div class="tree-controls">
+                  <label title="Element visible" (click)="$event.stopPropagation()">
+                    <input
+                      type="checkbox"
+                      [checked]="node.element.visible"
+                      (change)="toggleElementVisible(node.element, $any($event.target).checked)"
+                    />
+                    Visible
+                  </label>
+                  <button
+                    type="button"
+                    class="danger-button"
+                    title="Delete element"
+                    (click)="$event.stopPropagation(); deleteElement(node.element)"
+                  >
+                    Delete
+                  </button>
+                </div>
+              }
             </li>
+
+            @if (node.kind === 'layer' && node.children.length > 0) {
+              <ul role="group" class="tree-group">
+                <ng-template ngTreeItemGroup [ownedBy]="treeItem" #group="ngTreeItemGroup">
+                  <ng-template
+                    [ngTemplateOutlet]="projectTreeTemplate"
+                    [ngTemplateOutletContext]="{ nodes: node.children, parent: group }"
+                  />
+                </ng-template>
+              </ul>
+            }
           }
-        </ul>
+        </ng-template>
       </section>
     </aside>
 
