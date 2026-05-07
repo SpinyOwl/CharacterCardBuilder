@@ -4,6 +4,7 @@ import {
   DesignElement,
   GearElement,
   GroupElement,
+  Point,
   RectangleElement,
   isGearElement,
   isGroupElement,
@@ -27,6 +28,12 @@ type DragState =
       startPointer: { x: number; y: number };
       start: { x: number; y: number; width: number; height: number; rotation: number };
     };
+
+interface RenderSegment {
+  id: string;
+  elements: DesignElement[];
+  subtractiveElements: DesignElement[];
+}
 
 @Component({
   selector: 'app-canvas-stage',
@@ -168,14 +175,32 @@ export class CanvasStageComponent {
     this.dragState = null;
   }
 
+  onSvgPointerDown(event: PointerEvent): void {
+    if (this.state.mode() !== 'edit') {
+      return;
+    }
+
+    const hit = this.findSubtractiveElementAtPointer(event);
+    if (hit) {
+      this.onElementPointerDown(event, hit.element, hit.layer);
+      return;
+    }
+
+    this.state.selectElement(null);
+  }
+
   clearSelection(): void {
     if (this.state.mode() === 'edit') {
       this.state.selectElement(null);
     }
   }
 
-  layerMaskId(layer: Layer): string {
-    return `mask-${layer.id}`;
+  segmentMaskId(segment: RenderSegment): string {
+    return `mask-${segment.id}`;
+  }
+
+  segmentAdditiveMaskId(segment: RenderSegment): string {
+    return `additive-mask-${segment.id}`;
   }
 
   backgroundPatternId(element: DesignElement): string {
@@ -188,6 +213,14 @@ export class CanvasStageComponent {
         ? `url(#${this.backgroundPatternId(element)})`
         : element.fill
       : null;
+  }
+
+  shapeStroke(element: DesignElement): string | null {
+    return isShapeElement(element) ? element.stroke : null;
+  }
+
+  shapeStrokeWidth(element: DesignElement): number | null {
+    return isShapeElement(element) ? element.strokeWidth : null;
   }
 
   elementTransform(element: DesignElement, includeRuntimeRotation = false): string {
@@ -228,12 +261,12 @@ export class CanvasStageComponent {
     return element.visible && element.mode === 'additive' && !isGroupElement(element);
   }
 
-  isSubtractivePathElement(element: DesignElement): boolean {
+  isSubtractiveVisible(element: DesignElement): boolean {
     return (
       element.visible &&
       element.mode === 'subtractive' &&
       !isGroupElement(element) &&
-      this.elementPath(element) !== ''
+      (element.type === 'circle' || this.elementPath(element) !== '')
     );
   }
 
@@ -257,6 +290,42 @@ export class CanvasStageComponent {
     return elements.flatMap((element) =>
       isGroupElement(element) ? [element, ...this.allElements(element.elements)] : [element],
     );
+  }
+
+  renderSegments(layer: Layer): RenderSegment[] {
+    const elements = this.allElements(layer.elements);
+    const segments: RenderSegment[] = [];
+    let currentAdditiveElements: DesignElement[] = [];
+
+    elements.forEach((element, index) => {
+      if (this.isSubtractiveVisible(element)) {
+        if (currentAdditiveElements.length > 0) {
+          segments.push({
+            id: `${layer.id}-${segments.length}`,
+            elements: currentAdditiveElements,
+            subtractiveElements: elements.slice(index).filter((candidate) =>
+              this.isSubtractiveVisible(candidate),
+            ),
+          });
+          currentAdditiveElements = [];
+        }
+        return;
+      }
+
+      if (this.isAdditiveVisible(element)) {
+        currentAdditiveElements.push(element);
+      }
+    });
+
+    if (currentAdditiveElements.length > 0) {
+      segments.push({
+        id: `${layer.id}-${segments.length}`,
+        elements: currentAdditiveElements,
+        subtractiveElements: [],
+      });
+    }
+
+    return segments;
   }
 
   resizeHandleX(element: RectangleElement, handle: ResizeHandle): number {
@@ -349,5 +418,87 @@ export class CanvasStageComponent {
   private pointerAngle(event: PointerEvent, element: DesignElement): number {
     const point = this.pointerToSvgPoint(event);
     return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
+  }
+
+  private findSubtractiveElementAtPointer(
+    event: PointerEvent,
+  ): { layer: Layer; element: DesignElement } | null {
+    const point = this.pointerToSvgPoint(event);
+    const layers = [...this.state.visibleLayers()].reverse();
+
+    for (const layer of layers) {
+      if (layer.locked || !layer.visible) {
+        continue;
+      }
+
+      const elements = [...this.allElements(layer.elements)].reverse();
+      for (const element of elements) {
+        if (
+          this.isSubtractiveVisible(element) &&
+          !element.locked &&
+          this.isPointInsideElement(point, element)
+        ) {
+          return { layer, element };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private isPointInsideElement(point: Point, element: DesignElement): boolean {
+    const localPoint = this.toElementLocalPoint(point, element);
+
+    switch (element.type) {
+      case 'circle':
+        return localPoint.x ** 2 + localPoint.y ** 2 <= element.radius ** 2;
+      case 'rectangle':
+        return (
+          localPoint.x >= 0 &&
+          localPoint.y >= 0 &&
+          localPoint.x <= element.width &&
+          localPoint.y <= element.height
+        );
+      case 'triangle':
+      case 'polygon':
+      case 'gear':
+        return this.isPointInsidePath(localPoint, this.elementPath(element));
+      case 'text':
+      case 'group':
+        return false;
+    }
+  }
+
+  private toElementLocalPoint(point: Point, element: DesignElement): Point {
+    if (isRectangleElement(element)) {
+      const centerX = element.x + element.width / 2;
+      const centerY = element.y + element.height / 2;
+      const radians = (-element.rotation * Math.PI) / 180;
+      const dx = point.x - centerX;
+      const dy = point.y - centerY;
+      return {
+        x: dx * Math.cos(radians) - dy * Math.sin(radians) + element.width / 2,
+        y: dx * Math.sin(radians) + dy * Math.cos(radians) + element.height / 2,
+      };
+    }
+
+    const rotation = element.rotation + (isGearElement(element) ? element.currentRotation : 0);
+    const radians = (-rotation * Math.PI) / 180;
+    const dx = point.x - element.x;
+    const dy = point.y - element.y;
+    return {
+      x: dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: dx * Math.sin(radians) + dy * Math.cos(radians),
+    };
+  }
+
+  private isPointInsidePath(point: Point, pathData: string): boolean {
+    if (!pathData) {
+      return false;
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    return path.isPointInFill(new DOMPoint(point.x, point.y));
   }
 }

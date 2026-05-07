@@ -9,7 +9,7 @@
     (pointermove)="onSvgPointerMove($event)"
     (pointerup)="onSvgPointerUp()"
     (pointerleave)="onSvgPointerUp()"
-    (pointerdown)="clearSelection()"
+    (pointerdown)="onSvgPointerDown($event)"
   >
     <rect
       [attr.width]="state.project().canvas.width"
@@ -58,124 +58,221 @@
       }
 
       @for (layer of state.visibleLayers(); track layer.id) {
-        <mask [attr.id]="layerMaskId(layer)" maskUnits="userSpaceOnUse">
-          <rect
-            x="0"
-            y="0"
-            [attr.width]="state.project().canvas.width"
-            [attr.height]="state.project().canvas.height"
-            fill="#ffffff"
-          />
-          @for (element of allElements(layer.elements); track element.id) {
-            @if (isSubtractivePathElement(element)) {
-              <path
-                [attr.d]="elementPath(element)"
-                [attr.transform]="renderTransform(element)"
+        @for (segment of renderSegments(layer); track segment.id) {
+          @if (segment.subtractiveElements.length > 0) {
+            <mask [attr.id]="segmentMaskId(segment)" maskUnits="userSpaceOnUse">
+              <rect
+                x="0"
+                y="0"
+                [attr.width]="state.project().canvas.width"
+                [attr.height]="state.project().canvas.height"
+                fill="#ffffff"
+              />
+              @for (element of segment.subtractiveElements; track element.id) {
+                @switch (element.type) {
+                  @case ('circle') {
+                    <circle
+                      cx="0"
+                      cy="0"
+                      [attr.r]="element.radius"
+                      [attr.transform]="renderTransform(element)"
+                      fill="#000000"
+                    />
+                  }
+                  @default {
+                    <path
+                      [attr.d]="elementPath(element)"
+                      [attr.transform]="renderTransform(element)"
+                      fill="#000000"
+                    />
+                  }
+                }
+              }
+            </mask>
+            <mask [attr.id]="segmentAdditiveMaskId(segment)" maskUnits="userSpaceOnUse">
+              <rect
+                x="0"
+                y="0"
+                [attr.width]="state.project().canvas.width"
+                [attr.height]="state.project().canvas.height"
                 fill="#000000"
               />
-            }
+              @for (element of segment.elements; track element.id) {
+                <g [attr.transform]="renderTransform(element)">
+                  @switch (element.type) {
+                    @case ('rectangle') {
+                      <path [attr.d]="elementPath(element)" fill="#ffffff" />
+                    }
+                    @case ('circle') {
+                      <circle cx="0" cy="0" [attr.r]="element.radius" fill="#ffffff" />
+                    }
+                    @case ('triangle') {
+                      <path [attr.d]="elementPath(element)" fill="#ffffff" />
+                    }
+                    @case ('polygon') {
+                      <path [attr.d]="elementPath(element)" fill="#ffffff" />
+                    }
+                    @case ('gear') {
+                      <path [attr.d]="elementPath(element)" fill="#ffffff" />
+                      <circle cx="0" cy="0" [attr.r]="element.discRadius * 0.42" fill="#ffffff" />
+                    }
+                    @case ('text') {
+                      <text
+                        x="0"
+                        y="0"
+                        [attr.text-anchor]="element.align"
+                        [attr.font-size]="element.fontSize"
+                        [attr.font-family]="element.fontFamily"
+                        [attr.font-weight]="element.fontWeight"
+                        fill="#ffffff"
+                      >
+                        {{ element.text }}
+                      </text>
+                    }
+                  }
+                </g>
+              }
+            </mask>
           }
-        </mask>
+        }
       }
     </defs>
 
     @for (layer of state.visibleLayers(); track layer.id) {
-      <g [attr.opacity]="layer.opacity" [attr.mask]="'url(#' + layerMaskId(layer) + ')'">
-        @for (element of allElements(layer.elements); track element.id) {
-          @if (isAdditiveVisible(element)) {
-            <g
-              class="element"
-              [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
-              [attr.transform]="renderTransform(element)"
-              (pointerdown)="
-                state.mode() === 'view' && isGear(element)
-                  ? onGearViewPointerDown($event, element)
-                  : onElementPointerDown($event, element, layer)
-              "
-              (wheel)="onGearWheel($event, element)"
-            >
-              @switch (element.type) {
-                @case ('rectangle') {
-                  <path
-                    [attr.d]="elementPath(element)"
-                    [attr.fill]="shapeFill(element)"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                }
-                @case ('circle') {
-                  <circle
-                    cx="0"
-                    cy="0"
-                    [attr.r]="element.radius"
-                    [attr.fill]="shapeFill(element)"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                }
-                @case ('triangle') {
-                  <path
-                    [attr.d]="elementPath(element)"
-                    [attr.fill]="shapeFill(element)"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                }
-                @case ('polygon') {
-                  <path
-                    [attr.d]="elementPath(element)"
-                    [attr.fill]="shapeFill(element)"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                }
-                @case ('gear') {
-                  <path
-                    [attr.d]="elementPath(element)"
-                    [attr.fill]="shapeFill(element)"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                  <circle
-                    cx="0"
-                    cy="0"
-                    [attr.r]="element.discRadius * 0.42"
-                    fill="#fff7d7"
-                    [attr.stroke]="element.stroke"
-                    [attr.stroke-width]="element.strokeWidth"
-                  />
-                  @for (label of element.labels ?? []; track label.id) {
+      <g [attr.opacity]="layer.opacity">
+        @for (segment of renderSegments(layer); track segment.id) {
+          <g
+            [attr.mask]="
+              segment.subtractiveElements.length > 0
+                ? 'url(#' + segmentMaskId(segment) + ')'
+                : null
+            "
+          >
+            @for (element of segment.elements; track element.id) {
+              <g
+                class="element"
+                [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
+                [attr.transform]="renderTransform(element)"
+                (pointerdown)="
+                  state.mode() === 'view' && isGear(element)
+                    ? onGearViewPointerDown($event, element)
+                    : onElementPointerDown($event, element, layer)
+                "
+                (wheel)="onGearWheel($event, element)"
+              >
+                @switch (element.type) {
+                  @case ('rectangle') {
+                    <path
+                      [attr.d]="elementPath(element)"
+                      [attr.fill]="shapeFill(element)"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                  }
+                  @case ('circle') {
+                    <circle
+                      cx="0"
+                      cy="0"
+                      [attr.r]="element.radius"
+                      [attr.fill]="shapeFill(element)"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                  }
+                  @case ('triangle') {
+                    <path
+                      [attr.d]="elementPath(element)"
+                      [attr.fill]="shapeFill(element)"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                  }
+                  @case ('polygon') {
+                    <path
+                      [attr.d]="elementPath(element)"
+                      [attr.fill]="shapeFill(element)"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                  }
+                  @case ('gear') {
+                    <path
+                      [attr.d]="elementPath(element)"
+                      [attr.fill]="shapeFill(element)"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                    <circle
+                      cx="0"
+                      cy="0"
+                      [attr.r]="element.discRadius * 0.42"
+                      fill="#fff7d7"
+                      [attr.stroke]="element.stroke"
+                      [attr.stroke-width]="element.strokeWidth"
+                    />
+                    @for (label of element.labels ?? []; track label.id) {
+                      <text
+                        [attr.x]="
+                          math.cos((label.angle * math.PI) / 180) *
+                          (element.discRadius - label.offsetFromEdge)
+                        "
+                        [attr.y]="
+                          math.sin((label.angle * math.PI) / 180) *
+                          (element.discRadius - label.offsetFromEdge)
+                        "
+                        text-anchor="middle"
+                        dominant-baseline="middle"
+                        font-size="4"
+                        font-family="Arial, sans-serif"
+                        fill="#392710"
+                      >
+                        {{ label.text }}
+                      </text>
+                    }
+                  }
+                  @case ('text') {
                     <text
-                      [attr.x]="
-                        math.cos((label.angle * math.PI) / 180) *
-                        (element.discRadius - label.offsetFromEdge)
-                      "
-                      [attr.y]="
-                        math.sin((label.angle * math.PI) / 180) *
-                        (element.discRadius - label.offsetFromEdge)
-                      "
-                      text-anchor="middle"
-                      dominant-baseline="middle"
-                      font-size="4"
-                      font-family="Arial, sans-serif"
-                      fill="#392710"
+                      x="0"
+                      y="0"
+                      [attr.text-anchor]="element.align"
+                      [attr.font-size]="element.fontSize"
+                      [attr.font-family]="element.fontFamily"
+                      [attr.font-weight]="element.fontWeight"
+                      [attr.fill]="element.fill"
                     >
-                      {{ label.text }}
+                      {{ element.text }}
                     </text>
                   }
                 }
-                @case ('text') {
-                  <text
-                    x="0"
-                    y="0"
-                    [attr.text-anchor]="element.align"
-                    [attr.font-size]="element.fontSize"
-                    [attr.font-family]="element.fontFamily"
-                    [attr.font-weight]="element.fontWeight"
-                    [attr.fill]="element.fill"
-                  >
-                    {{ element.text }}
-                  </text>
+              </g>
+            }
+          </g>
+          @if (segment.subtractiveElements.length > 0) {
+            <g [attr.mask]="'url(#' + segmentAdditiveMaskId(segment) + ')'">
+              @for (element of segment.subtractiveElements; track element.id) {
+                @switch (element.type) {
+                  @case ('circle') {
+                    <circle
+                      class="cutout-stroke"
+                      cx="0"
+                      cy="0"
+                      [attr.r]="element.radius"
+                      [attr.transform]="renderTransform(element)"
+                      fill="none"
+                      [attr.stroke]="shapeStroke(element)"
+                      [attr.stroke-width]="shapeStrokeWidth(element)"
+                    />
+                  }
+                  @default {
+                    <path
+                      class="cutout-stroke"
+                      [attr.d]="elementPath(element)"
+                      [attr.transform]="renderTransform(element)"
+                      fill="none"
+                      [attr.stroke]="shapeStroke(element)"
+                      [attr.stroke-width]="shapeStrokeWidth(element)"
+                    />
+                  }
                 }
               }
             </g>
@@ -186,14 +283,29 @@
       @if (state.mode() === 'edit') {
         <g data-editor-helper="true">
           @for (element of allElements(layer.elements); track element.id) {
-            @if (isSubtractivePathElement(element)) {
-              <path
-                class="subtractive-outline"
-                [class.selected-outline]="isSelected(element)"
-                [attr.d]="elementPath(element)"
-                [attr.transform]="renderTransform(element)"
-                (pointerdown)="onElementPointerDown($event, element, layer)"
-              />
+            @if (isSubtractiveVisible(element)) {
+              @switch (element.type) {
+                @case ('circle') {
+                  <circle
+                    class="subtractive-outline"
+                    [class.selected-outline]="isSelected(element)"
+                    cx="0"
+                    cy="0"
+                    [attr.r]="element.radius"
+                    [attr.transform]="renderTransform(element)"
+                    (pointerdown)="onElementPointerDown($event, element, layer)"
+                  />
+                }
+                @default {
+                  <path
+                    class="subtractive-outline"
+                    [class.selected-outline]="isSelected(element)"
+                    [attr.d]="elementPath(element)"
+                    [attr.transform]="renderTransform(element)"
+                    (pointerdown)="onElementPointerDown($event, element, layer)"
+                  />
+                }
+              }
             }
           }
         </g>
