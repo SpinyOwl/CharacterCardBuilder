@@ -165,6 +165,7 @@
               [value]="node.value"
               [label]="node.name"
               [cdkDragData]="node"
+              [cdkDragDisabled]="node.kind === 'element' && node.element.locked"
               [(expanded)]="node.expanded"
               #treeItem="ngTreeItem"
               class="tree-row"
@@ -173,6 +174,7 @@
               [class.muted-row]="
                 node.kind === 'layer' ? !node.layer.visible : !node.element.visible
               "
+              [class.locked-row]="node.kind === 'element' && node.element.locked"
               (click)="
                 node.kind === 'layer'
                   ? state.selectLayer(node.layer.id)
@@ -244,9 +246,27 @@
                   </button>
                   <button
                     type="button"
+                    class="tree-icon-button"
+                    [class.active]="node.element.locked"
+                    [title]="node.element.locked ? 'Unlock element' : 'Lock element'"
+                    [attr.aria-label]="node.element.locked ? 'Unlock element' : 'Lock element'"
+                    (click)="
+                      $event.stopPropagation();
+                      toggleElementLocked(node.element, !node.element.locked)
+                    "
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      node.element.locked ? 'lock' : 'lock_open'
+                    }}</span>
+                  </button>
+                  <button
+                    type="button"
                     class="tree-icon-button danger-button"
-                    title="Delete element"
-                    aria-label="Delete element"
+                    [disabled]="node.element.locked"
+                    [title]="node.element.locked ? 'Unlock element to delete' : 'Delete element'"
+                    [attr.aria-label]="
+                      node.element.locked ? 'Unlock element to delete' : 'Delete element'
+                    "
                     (click)="$event.stopPropagation(); deleteElement(node.element)"
                   >
                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>

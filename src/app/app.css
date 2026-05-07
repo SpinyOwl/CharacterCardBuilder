@@ -230,6 +230,10 @@ li[aria-expanded='false'] + ul[role='group'] {
   opacity: 0.62;
 }
 
+.locked-row .tree-name {
+  color: #4f5a4f;
+}
+
 .tree-name {
   overflow: hidden;
   font-size: 13px;
@@ -286,6 +290,11 @@ li[aria-expanded='false'] + ul[role='group'] {
 
 .tree-icon-button.inactive {
   color: #8b958b;
+}
+
+.tree-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .material-symbols-outlined {

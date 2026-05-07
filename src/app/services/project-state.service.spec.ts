@@ -50,6 +50,31 @@ describe('ProjectStateService', () => {
     expect(state.selectedElementId()).toBeNull();
   });
 
+  it('prevents locked elements from being selected, edited, moved, or deleted', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('card-body', { locked: true });
+    state.selectElement('card-body');
+    state.updateElement('card-body', { x: 99 });
+    state.moveElementInEditMode('card-body', 5, 5);
+    state.deleteElement('card-body');
+
+    const element = state.findElement('card-body')?.element;
+    expect(state.selectedElementId()).toBeNull();
+    expect(element).toMatchObject({ id: 'card-body', x: 45, y: 34, locked: true });
+  });
+
+  it('prevents locked gears from rotating in view mode', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('gear-main', { locked: true });
+    state.setMode('view');
+    state.rotateGearInViewMode('gear-main', 45);
+
+    const gear = state.findElement('gear-main')?.element;
+    expect(gear?.type === 'gear' ? gear.currentRotation : undefined).toBe(0);
+  });
+
   it('adds a new layer and selects it', () => {
     const state = new ProjectStateService();
     const initialLayerCount = state.project().layers.length;

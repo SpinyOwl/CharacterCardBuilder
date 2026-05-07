@@ -202,6 +202,11 @@ export class ProjectStateService {
   }
 
   updateElement(elementId: string, patch: Partial<DesignElement>): void {
+    const found = this.findElement(elementId);
+    if (found?.element.locked && !isLockControlPatch(patch)) {
+      return;
+    }
+
     this.project.update((project) => ({
       ...project,
       layers: project.layers.map((layer) => ({
@@ -212,6 +217,11 @@ export class ProjectStateService {
   }
 
   deleteElement(elementId: string): void {
+    const found = this.findElement(elementId);
+    if (found?.element.locked) {
+      return;
+    }
+
     this.project.update((project) => ({
       ...project,
       layers: project.layers.map((layer) => ({
@@ -247,7 +257,7 @@ export class ProjectStateService {
     }
 
     const found = this.findElement(elementId);
-    if (!found || !found.layer.visible || !found.element.visible || !isGearElement(found.element)) {
+    if (!found || !canEditElement(found.layer, found.element) || !isGearElement(found.element)) {
       return;
     }
 
@@ -369,6 +379,11 @@ export function getSelectableElements(project: Project): DesignElement[] {
 
 export function canEditElement(layer: Layer, element: DesignElement): boolean {
   return layer.visible && !layer.locked && element.visible && !element.locked;
+}
+
+function isLockControlPatch(patch: Partial<DesignElement>): boolean {
+  const editableWhileLocked = new Set<keyof DesignElement>(['locked', 'visible']);
+  return Object.keys(patch).every((key) => editableWhileLocked.has(key as keyof DesignElement));
 }
 
 function updateElementInList(

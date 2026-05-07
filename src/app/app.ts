@@ -343,6 +343,14 @@ export class App {
     this.refreshYaml();
   }
 
+  toggleElementLocked(element: DesignElement, locked: boolean): void {
+    this.state.updateElement(element.id, { locked } as Partial<DesignElement>);
+    if (locked && this.state.selectedElementId() === element.id) {
+      this.state.selectElement(null);
+    }
+    this.refreshYaml();
+  }
+
   deleteElement(element: DesignElement): void {
     this.state.deleteElement(element.id);
     this.refreshYaml();
