@@ -1,0 +1,234 @@
+<section class="canvas-stage">
+  <svg
+    #scene
+    class="scene"
+    [class.scene-borderless]="!(state.project().pageSetup?.showPageBorder ?? true)"
+    [attr.viewBox]="'0 0 ' + state.project().canvas.width + ' ' + state.project().canvas.height"
+    [attr.width]="state.project().canvas.width + 'mm'"
+    [attr.height]="state.project().canvas.height + 'mm'"
+    (pointermove)="onSvgPointerMove($event)"
+    (pointerup)="onSvgPointerUp()"
+    (pointerleave)="onSvgPointerUp()"
+    (pointerdown)="clearSelection()"
+  >
+    <rect
+      [attr.width]="state.project().canvas.width"
+      [attr.height]="state.project().canvas.height"
+      [attr.fill]="state.project().canvas.backgroundColor ?? '#ffffff'"
+    />
+    @if (state.mode() === 'edit') {
+      <rect
+        class="page-margin-guide"
+        [attr.x]="state.project().pageSetup?.marginLeft ?? 0"
+        [attr.y]="state.project().pageSetup?.marginTop ?? 0"
+        [attr.width]="
+          state.project().canvas.width -
+          (state.project().pageSetup?.marginLeft ?? 0) -
+          (state.project().pageSetup?.marginRight ?? 0)
+        "
+        [attr.height]="
+          state.project().canvas.height -
+          (state.project().pageSetup?.marginTop ?? 0) -
+          (state.project().pageSetup?.marginBottom ?? 0)
+        "
+      />
+    }
+
+    <defs>
+      @for (layer of state.visibleLayers(); track layer.id) {
+        <mask [attr.id]="layerMaskId(layer)" maskUnits="userSpaceOnUse">
+          <rect
+            x="0"
+            y="0"
+            [attr.width]="state.project().canvas.width"
+            [attr.height]="state.project().canvas.height"
+            fill="#ffffff"
+          />
+          @for (element of layer.elements; track element.id) {
+            @if (isSubtractiveRectangle(element)) {
+              <path
+                [attr.d]="elementPath(element)"
+                [attr.transform]="rectangleTransform(element)"
+                fill="#000000"
+              />
+            }
+          }
+        </mask>
+      }
+    </defs>
+
+    @for (layer of state.visibleLayers(); track layer.id) {
+      <g [attr.opacity]="layer.opacity" [attr.mask]="'url(#' + layerMaskId(layer) + ')'">
+        @for (element of layer.elements; track element.id) {
+          @if (isAdditiveVisible(element)) {
+            <g
+              class="element"
+              [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
+              [attr.transform]="
+                element.type === 'rectangle'
+                  ? rectangleTransform($any(element))
+                  : elementTransform(element, true)
+              "
+              (pointerdown)="
+                state.mode() === 'view' && isGear(element)
+                  ? onGearViewPointerDown($event, element)
+                  : onElementPointerDown($event, element, layer)
+              "
+              (wheel)="onGearWheel($event, element)"
+            >
+              @switch (element.type) {
+                @case ('rectangle') {
+                  <path
+                    [attr.d]="elementPath(element)"
+                    [attr.fill]="element.fill"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                }
+                @case ('circle') {
+                  <circle
+                    cx="0"
+                    cy="0"
+                    [attr.r]="element.radius"
+                    [attr.fill]="element.fill"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                }
+                @case ('triangle') {
+                  <path
+                    [attr.d]="elementPath(element)"
+                    [attr.fill]="element.fill"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                }
+                @case ('polygon') {
+                  <path
+                    [attr.d]="elementPath(element)"
+                    [attr.fill]="element.fill"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                }
+                @case ('gear') {
+                  <path
+                    [attr.d]="elementPath(element)"
+                    [attr.fill]="element.fill"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                  <circle
+                    cx="0"
+                    cy="0"
+                    [attr.r]="element.discRadius * 0.42"
+                    fill="#fff7d7"
+                    [attr.stroke]="element.stroke"
+                    [attr.stroke-width]="element.strokeWidth"
+                  />
+                  @for (label of element.labels ?? []; track label.id) {
+                    <text
+                      [attr.x]="
+                        math.cos((label.angle * math.PI) / 180) *
+                        (element.discRadius - label.offsetFromEdge)
+                      "
+                      [attr.y]="
+                        math.sin((label.angle * math.PI) / 180) *
+                        (element.discRadius - label.offsetFromEdge)
+                      "
+                      text-anchor="middle"
+                      dominant-baseline="middle"
+                      font-size="4"
+                      font-family="Arial, sans-serif"
+                      fill="#392710"
+                    >
+                      {{ label.text }}
+                    </text>
+                  }
+                }
+                @case ('text') {
+                  <text
+                    x="0"
+                    y="0"
+                    [attr.text-anchor]="element.align"
+                    [attr.font-size]="element.fontSize"
+                    [attr.font-family]="element.fontFamily"
+                    [attr.font-weight]="element.fontWeight"
+                    [attr.fill]="element.fill"
+                  >
+                    {{ element.text }}
+                  </text>
+                }
+              }
+            </g>
+          }
+        }
+      </g>
+
+      @if (state.mode() === 'edit') {
+        <g data-editor-helper="true">
+          @for (element of layer.elements; track element.id) {
+            @if (isSubtractiveRectangle(element)) {
+              <path
+                class="subtractive-outline"
+                [class.selected-outline]="isSelected(element)"
+                [attr.d]="elementPath(element)"
+                [attr.transform]="rectangleTransform(element)"
+                (pointerdown)="onElementPointerDown($event, element, layer)"
+              />
+            }
+          }
+        </g>
+      }
+    }
+
+    @if (state.mode() === 'edit') {
+      <g data-editor-helper="true">
+        @for (layer of state.visibleLayers(); track layer.id) {
+          @for (element of layer.elements; track element.id) {
+            @if (isSelected(element)) {
+              @if (isRectangle(element)) {
+                <g class="resize-overlay" [attr.transform]="rectangleTransform(element)">
+                  <rect
+                    class="resize-outline"
+                    x="0"
+                    y="0"
+                    [attr.width]="element.width"
+                    [attr.height]="element.height"
+                  />
+                  @for (handle of resizeHandles; track handle) {
+                    <rect
+                      class="resize-handle"
+                      width="4"
+                      height="4"
+                      [attr.x]="resizeHandleX(element, handle) - 2"
+                      [attr.y]="resizeHandleY(element, handle) - 2"
+                      [style.cursor]="resizeCursor(handle)"
+                      (pointerdown)="onRectangleResizePointerDown($event, element, handle)"
+                    />
+                  }
+                </g>
+              }
+              <circle
+                class="selection-anchor"
+                [attr.cx]="element.x"
+                [attr.cy]="element.y"
+                r="2.2"
+              />
+            }
+          }
+        }
+      </g>
+    }
+
+    @if (state.project().pageSetup?.showPageBorder ?? true) {
+      <rect
+        class="page-border"
+        x="0"
+        y="0"
+        [attr.width]="state.project().canvas.width"
+        [attr.height]="state.project().canvas.height"
+      />
+    }
+  </svg>
+</section>

@@ -1,37 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { OverlayModule } from '@angular/cdk/overlay';
 import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
 import { Tree, TreeItem } from '@angular/aria/tree';
-import {
-  DesignElement,
-  GearElement,
-  RectangleElement,
-  isGearElement,
-  isRectangleElement,
-} from './models/element.model';
+import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
+import { DesignElement } from './models/element.model';
 import { Layer } from './models/layer.model';
 import { ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
 import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
-import { createPolygonPath, createTrianglePath, roundedRectPath } from './utils/geometry.utils';
-import { createGearPath } from './utils/gear.utils';
-
-type DragState =
-  | { kind: 'move'; elementId: string; last: { x: number; y: number } }
-  | { kind: 'rotate'; elementId: string; lastAngle: number }
-  | {
-      kind: 'resize-rectangle';
-      elementId: string;
-      handle: ResizeHandle;
-      startPointer: { x: number; y: number };
-      start: { x: number; y: number; width: number; height: number; rotation: number };
-    };
-
-type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
   A6: { width: 105, height: 148 },
@@ -57,7 +36,6 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
   imports: [
     CommonModule,
     FormsModule,
-    OverlayModule,
     MenuBar,
     MenuItem,
     Toolbar,
@@ -65,12 +43,14 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
     ToolbarWidgetGroup,
     Tree,
     TreeItem,
+    CanvasStageComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
 export class App {
-  @ViewChild('scene', { static: false }) private readonly scene?: ElementRef<SVGSVGElement>;
+  @ViewChild(CanvasStageComponent, { static: false })
+  private readonly canvasStage?: CanvasStageComponent;
 
   readonly state = inject(ProjectStateService);
   private readonly importExport = inject(ImportExportService);
@@ -83,7 +63,6 @@ export class App {
   readonly isPageSetupOpen = signal(false);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
-  readonly resizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   readonly selectedLayerValues = computed(() => {
     const selectedLayerId = this.state.selectedLayerId();
     return selectedLayerId ? [selectedLayerId] : [];
@@ -115,9 +94,6 @@ export class App {
       ? `${option.paperSize} ${option.orientation} or larger (${this.formatMm(bounds.width)} x ${this.formatMm(bounds.height)} mm)`
       : `Larger than listed paper (${this.formatMm(bounds.width)} x ${this.formatMm(bounds.height)} mm)`;
   });
-  readonly math = Math;
-
-  private dragState: DragState | null = null;
 
   constructor() {
     this.refreshYaml();
@@ -226,7 +202,7 @@ export class App {
   }
 
   exportSvg(): void {
-    const svg = this.scene?.nativeElement;
+    const svg = this.canvasStage?.getSvgElement();
     if (!svg) {
       return;
     }
@@ -299,199 +275,6 @@ export class App {
     this.patchSelected({ mode } as Partial<DesignElement>);
   }
 
-  onElementPointerDown(event: PointerEvent, element: DesignElement, layer: Layer): void {
-    event.stopPropagation();
-
-    if (this.state.mode() !== 'edit') {
-      return;
-    }
-
-    if (layer.locked || element.locked || !layer.visible || !element.visible) {
-      return;
-    }
-
-    this.state.selectElement(element.id);
-    this.dragState = {
-      kind: 'move',
-      elementId: element.id,
-      last: this.pointerToSvgPoint(event),
-    };
-  }
-
-  onRectangleResizePointerDown(
-    event: PointerEvent,
-    element: RectangleElement,
-    handle: ResizeHandle,
-  ): void {
-    event.stopPropagation();
-
-    if (this.state.mode() !== 'edit') {
-      return;
-    }
-
-    const found = this.state.findElement(element.id);
-    if (
-      !found ||
-      found.layer.locked ||
-      element.locked ||
-      !found.layer.visible ||
-      !element.visible
-    ) {
-      return;
-    }
-
-    this.state.selectElement(element.id);
-    this.dragState = {
-      kind: 'resize-rectangle',
-      elementId: element.id,
-      handle,
-      startPointer: this.pointerToSvgPoint(event),
-      start: {
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        rotation: element.rotation,
-      },
-    };
-  }
-
-  onGearViewPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
-      return;
-    }
-
-    event.stopPropagation();
-    this.dragState = {
-      kind: 'rotate',
-      elementId: element.id,
-      lastAngle: this.pointerAngle(event, element),
-    };
-  }
-
-  onGearWheel(event: WheelEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
-      return;
-    }
-
-    event.preventDefault();
-    this.state.rotateGearInViewMode(element.id, event.deltaY > 0 ? 6 : -6);
-    this.refreshYaml();
-  }
-
-  onSvgPointerMove(event: PointerEvent): void {
-    if (!this.dragState) {
-      return;
-    }
-
-    if (this.dragState.kind === 'move') {
-      const point = this.pointerToSvgPoint(event);
-      this.state.moveElementInEditMode(
-        this.dragState.elementId,
-        point.x - this.dragState.last.x,
-        point.y - this.dragState.last.y,
-      );
-      this.dragState = { ...this.dragState, last: point };
-      this.refreshYaml();
-      return;
-    }
-
-    if (this.dragState.kind === 'resize-rectangle') {
-      this.resizeRectangleFromPointer(event, this.dragState);
-      this.refreshYaml();
-      return;
-    }
-
-    const found = this.state.findElement(this.dragState.elementId);
-    if (!found || !isGearElement(found.element)) {
-      return;
-    }
-
-    const angle = this.pointerAngle(event, found.element);
-    this.state.rotateGearInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
-    this.dragState = { ...this.dragState, lastAngle: angle };
-    this.refreshYaml();
-  }
-
-  onSvgPointerUp(): void {
-    this.dragState = null;
-  }
-
-  clearSelection(): void {
-    if (this.state.mode() === 'edit') {
-      this.state.selectElement(null);
-    }
-  }
-
-  layerMaskId(layer: Layer): string {
-    return `mask-${layer.id}`;
-  }
-
-  elementTransform(element: DesignElement, includeRuntimeRotation = false): string {
-    const rotation =
-      element.rotation +
-      (includeRuntimeRotation && isGearElement(element) ? element.currentRotation : 0);
-    return `translate(${element.x} ${element.y}) rotate(${rotation})`;
-  }
-
-  elementPath(element: DesignElement): string {
-    switch (element.type) {
-      case 'rectangle':
-        return roundedRectPath(element.width, element.height, element.radius ?? 0);
-      case 'triangle':
-        return createTrianglePath(element.width, element.height);
-      case 'polygon':
-        return createPolygonPath(element.points);
-      case 'gear':
-        return createGearPath(element);
-      case 'circle':
-      case 'text':
-        return '';
-    }
-  }
-
-  rectangleTransform(element: RectangleElement): string {
-    return `translate(${element.x + element.width / 2} ${element.y + element.height / 2}) rotate(${element.rotation}) translate(${-element.width / 2} ${-element.height / 2})`;
-  }
-
-  isAdditiveVisible(element: DesignElement): boolean {
-    return element.visible && element.mode === 'additive';
-  }
-
-  isSubtractiveRectangle(element: DesignElement): element is RectangleElement {
-    return element.visible && element.mode === 'subtractive' && isRectangleElement(element);
-  }
-
-  isSelected(element: DesignElement): boolean {
-    return this.state.selectedElementId() === element.id;
-  }
-
-  isGear(element: DesignElement): element is GearElement {
-    return isGearElement(element);
-  }
-
-  isRectangle(element: DesignElement): element is RectangleElement {
-    return isRectangleElement(element);
-  }
-
-  resizeHandleX(element: RectangleElement, handle: ResizeHandle): number {
-    if (handle.includes('w')) {
-      return 0;
-    }
-    return handle.includes('e') ? element.width : element.width / 2;
-  }
-
-  resizeHandleY(element: RectangleElement, handle: ResizeHandle): number {
-    if (handle.includes('n')) {
-      return 0;
-    }
-    return handle.includes('s') ? element.height : element.height / 2;
-  }
-
-  resizeCursor(handle: ResizeHandle): string {
-    return `${handle}-resize`;
-  }
-
   private patchSelected(patch: Partial<DesignElement>): void {
     const selectedElementId = this.state.selectedElementId();
     if (selectedElementId) {
@@ -519,61 +302,6 @@ export class App {
     const maxX = Math.max(...bounds.map((bound) => bound.maxX));
     const maxY = Math.max(...bounds.map((bound) => bound.maxY));
     return { width: maxX - minX, height: maxY - minY };
-  }
-
-  private resizeRectangleFromPointer(
-    event: PointerEvent,
-    dragState: Extract<DragState, { kind: 'resize-rectangle' }>,
-  ): void {
-    const found = this.state.findElement(dragState.elementId);
-    if (!found || !isRectangleElement(found.element)) {
-      return;
-    }
-
-    const point = this.pointerToSvgPoint(event);
-    const dx = point.x - dragState.startPointer.x;
-    const dy = point.y - dragState.startPointer.y;
-    const radians = (dragState.start.rotation * Math.PI) / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-    const localDx = dx * cos + dy * sin;
-    const localDy = -dx * sin + dy * cos;
-    const handle = dragState.handle;
-    const minSize = 2;
-
-    const requestedWidth =
-      handle.includes('e') || handle.includes('w')
-        ? dragState.start.width + (handle.includes('e') ? localDx : -localDx)
-        : dragState.start.width;
-    const requestedHeight =
-      handle.includes('n') || handle.includes('s')
-        ? dragState.start.height + (handle.includes('s') ? localDy : -localDy)
-        : dragState.start.height;
-    const width = Math.max(minSize, requestedWidth);
-    const height = Math.max(minSize, requestedHeight);
-
-    const centerShiftLocalX = handle.includes('e')
-      ? (width - dragState.start.width) / 2
-      : handle.includes('w')
-        ? (dragState.start.width - width) / 2
-        : 0;
-    const centerShiftLocalY = handle.includes('s')
-      ? (height - dragState.start.height) / 2
-      : handle.includes('n')
-        ? (dragState.start.height - height) / 2
-        : 0;
-
-    const centerX = dragState.start.x + dragState.start.width / 2;
-    const centerY = dragState.start.y + dragState.start.height / 2;
-    const shiftedCenterX = centerX + centerShiftLocalX * cos - centerShiftLocalY * sin;
-    const shiftedCenterY = centerY + centerShiftLocalX * sin + centerShiftLocalY * cos;
-
-    this.state.updateElement(dragState.elementId, {
-      x: shiftedCenterX - width / 2,
-      y: shiftedCenterY - height / 2,
-      width,
-      height,
-    } as Partial<RectangleElement>);
   }
 
   private elementBounds(element: DesignElement): {
@@ -624,24 +352,5 @@ export class App {
           maxY: element.y,
         };
     }
-  }
-
-  private pointerToSvgPoint(event: PointerEvent): { x: number; y: number } {
-    const svg = this.scene?.nativeElement;
-    if (!svg) {
-      return { x: 0, y: 0 };
-    }
-
-    const rect = svg.getBoundingClientRect();
-    const canvas = this.state.project().canvas;
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
-      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
-    };
-  }
-
-  private pointerAngle(event: PointerEvent, element: DesignElement): number {
-    const point = this.pointerToSvgPoint(event);
-    return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
   }
 }
