@@ -1,0 +1,613 @@
+<main class="app-shell">
+  <header class="topbar">
+    <div ngMenuBar class="menubar" aria-label="Application menu">
+      <div class="menu-root">
+        <button
+          ngMenuItem
+          value="file"
+          type="button"
+          class="menu-trigger"
+          [class.active]="isFileMenuOpen()"
+          (click)="toggleFileMenu()"
+        >
+          File
+        </button>
+        @if (isFileMenuOpen()) {
+          <div class="menu-popover" role="menu" aria-label="File menu">
+            <button type="button" role="menuitem" (click)="openProject(projectInput)">
+              Open project
+            </button>
+            <button type="button" role="menuitem" (click)="saveProject()">Save project</button>
+            <button type="button" role="menuitem" (click)="showImportExport()">
+              Import/export
+            </button>
+            <button type="button" role="menuitem" (click)="openPageSetup()">Page setup</button>
+          </div>
+        }
+      </div>
+      <button
+        ngMenuItem
+        value="view"
+        type="button"
+        (click)="setMode(state.mode() === 'edit' ? 'view' : 'edit')"
+      >
+        View
+      </button>
+      <button ngMenuItem value="export" type="button" (click)="exportSvg()">Export SVG</button>
+    </div>
+    <input
+      #projectInput
+      class="visually-hidden"
+      type="file"
+      accept=".yaml,.yml,text/yaml"
+      (change)="onProjectFileSelected($event)"
+    />
+
+    <div ngToolbar class="toolbar" aria-label="Editor toolbar">
+      <div ngToolbarWidgetGroup class="segmented">
+        <button
+          ngToolbarWidget
+          value="edit"
+          type="button"
+          [class.active]="state.mode() === 'edit'"
+          (click)="setMode('edit')"
+        >
+          Edit
+        </button>
+        <button
+          ngToolbarWidget
+          value="view"
+          type="button"
+          [class.active]="state.mode() === 'view'"
+          (click)="setMode('view')"
+        >
+          View
+        </button>
+      </div>
+      <button ngToolbarWidget value="yaml" type="button" (click)="refreshYaml()">
+        Refresh YAML
+      </button>
+      <button ngToolbarWidget value="svg" type="button" (click)="exportSvg()">Export SVG</button>
+    </div>
+  </header>
+
+  <section class="workspace">
+    <aside class="panel left-panel">
+      <section class="panel-section">
+        <h2>Layers</h2>
+        <ul
+          ngTree
+          #layerTree="ngTree"
+          class="layer-tree"
+          [values]="selectedLayerValues()"
+          (valuesChange)="onLayerSelectionChange($event)"
+          aria-label="Project layers"
+        >
+          @for (layer of state.project().layers; track layer.id) {
+            <li
+              ngTreeItem
+              [parent]="layerTree"
+              [value]="layer.id"
+              [label]="layer.name"
+              [disabled]="!layer.visible"
+              class="layer-row"
+              [class.selected]="state.selectedLayerId() === layer.id"
+              (click)="state.selectLayer(layer.id)"
+            >
+              <span class="layer-name">{{ layer.name }}</span>
+              <label title="Layer visible">
+                <input
+                  type="checkbox"
+                  [checked]="layer.visible"
+                  (change)="toggleLayerVisible(layer, $any($event.target).checked)"
+                />
+                Visible
+              </label>
+              <label title="Layer locked">
+                <input
+                  type="checkbox"
+                  [checked]="layer.locked"
+                  (change)="toggleLayerLocked(layer, $any($event.target).checked)"
+                />
+                Locked
+              </label>
+            </li>
+          }
+        </ul>
+      </section>
+
+      <section #importExportSection class="panel-section">
+        <h2>Project YAML</h2>
+        <textarea
+          class="yaml-box"
+          [ngModel]="yamlText()"
+          (ngModelChange)="yamlText.set($event)"
+          spellcheck="false"
+        ></textarea>
+        @if (importError(); as error) {
+          <p class="error">{{ error }}</p>
+        }
+        <div class="button-row">
+          <button type="button" (click)="refreshYaml()">Export YAML</button>
+          <button type="button" (click)="importYaml()">Import YAML</button>
+          <button type="button" (click)="downloadYaml()">Download YAML</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="canvas-stage">
+      <svg
+        #scene
+        class="scene"
+        [class.scene-borderless]="!(state.project().pageSetup?.showPageBorder ?? true)"
+        [attr.viewBox]="'0 0 ' + state.project().canvas.width + ' ' + state.project().canvas.height"
+        [attr.width]="state.project().canvas.width + 'mm'"
+        [attr.height]="state.project().canvas.height + 'mm'"
+        (pointermove)="onSvgPointerMove($event)"
+        (pointerup)="onSvgPointerUp()"
+        (pointerleave)="onSvgPointerUp()"
+        (pointerdown)="clearSelection()"
+      >
+        <rect
+          [attr.width]="state.project().canvas.width"
+          [attr.height]="state.project().canvas.height"
+          [attr.fill]="state.project().canvas.backgroundColor ?? '#ffffff'"
+        />
+        @if (state.mode() === 'edit') {
+          <rect
+            class="page-margin-guide"
+            [attr.x]="state.project().pageSetup?.marginLeft ?? 0"
+            [attr.y]="state.project().pageSetup?.marginTop ?? 0"
+            [attr.width]="
+              state.project().canvas.width -
+              (state.project().pageSetup?.marginLeft ?? 0) -
+              (state.project().pageSetup?.marginRight ?? 0)
+            "
+            [attr.height]="
+              state.project().canvas.height -
+              (state.project().pageSetup?.marginTop ?? 0) -
+              (state.project().pageSetup?.marginBottom ?? 0)
+            "
+          />
+        }
+
+        <defs>
+          @for (layer of state.visibleLayers(); track layer.id) {
+            <mask [attr.id]="layerMaskId(layer)" maskUnits="userSpaceOnUse">
+              <rect
+                x="0"
+                y="0"
+                [attr.width]="state.project().canvas.width"
+                [attr.height]="state.project().canvas.height"
+                fill="#ffffff"
+              />
+              @for (element of layer.elements; track element.id) {
+                @if (isSubtractiveRectangle(element)) {
+                  <path
+                    [attr.d]="elementPath(element)"
+                    [attr.transform]="rectangleTransform(element)"
+                    fill="#000000"
+                  />
+                }
+              }
+            </mask>
+          }
+        </defs>
+
+        @for (layer of state.visibleLayers(); track layer.id) {
+          <g [attr.opacity]="layer.opacity" [attr.mask]="'url(#' + layerMaskId(layer) + ')'">
+            @for (element of layer.elements; track element.id) {
+              @if (isAdditiveVisible(element)) {
+                <g
+                  class="element"
+                  [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
+                  [attr.transform]="
+                    element.type === 'rectangle'
+                      ? rectangleTransform($any(element))
+                      : elementTransform(element, true)
+                  "
+                  (pointerdown)="
+                    state.mode() === 'view' && isGear(element)
+                      ? onGearViewPointerDown($event, element)
+                      : onElementPointerDown($event, element, layer)
+                  "
+                  (wheel)="onGearWheel($event, element)"
+                >
+                  @switch (element.type) {
+                    @case ('rectangle') {
+                      <path
+                        [attr.d]="elementPath(element)"
+                        [attr.fill]="element.fill"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
+                    @case ('circle') {
+                      <circle
+                        cx="0"
+                        cy="0"
+                        [attr.r]="element.radius"
+                        [attr.fill]="element.fill"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
+                    @case ('triangle') {
+                      <path
+                        [attr.d]="elementPath(element)"
+                        [attr.fill]="element.fill"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
+                    @case ('polygon') {
+                      <path
+                        [attr.d]="elementPath(element)"
+                        [attr.fill]="element.fill"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
+                    @case ('gear') {
+                      <path
+                        [attr.d]="elementPath(element)"
+                        [attr.fill]="element.fill"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                      <circle
+                        cx="0"
+                        cy="0"
+                        [attr.r]="element.discRadius * 0.42"
+                        fill="#fff7d7"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                      @for (label of element.labels ?? []; track label.id) {
+                        <text
+                          [attr.x]="
+                            math.cos((label.angle * math.PI) / 180) *
+                            (element.discRadius - label.offsetFromEdge)
+                          "
+                          [attr.y]="
+                            math.sin((label.angle * math.PI) / 180) *
+                            (element.discRadius - label.offsetFromEdge)
+                          "
+                          text-anchor="middle"
+                          dominant-baseline="middle"
+                          font-size="4"
+                          font-family="Arial, sans-serif"
+                          fill="#392710"
+                        >
+                          {{ label.text }}
+                        </text>
+                      }
+                    }
+                    @case ('text') {
+                      <text
+                        x="0"
+                        y="0"
+                        [attr.text-anchor]="element.align"
+                        [attr.font-size]="element.fontSize"
+                        [attr.font-family]="element.fontFamily"
+                        [attr.font-weight]="element.fontWeight"
+                        [attr.fill]="element.fill"
+                      >
+                        {{ element.text }}
+                      </text>
+                    }
+                  }
+                </g>
+              }
+            }
+          </g>
+
+          @if (state.mode() === 'edit') {
+            <g data-editor-helper="true">
+              @for (element of layer.elements; track element.id) {
+                @if (isSubtractiveRectangle(element)) {
+                  <path
+                    class="subtractive-outline"
+                    [class.selected-outline]="isSelected(element)"
+                    [attr.d]="elementPath(element)"
+                    [attr.transform]="rectangleTransform(element)"
+                    (pointerdown)="onElementPointerDown($event, element, layer)"
+                  />
+                }
+              }
+            </g>
+          }
+        }
+
+        @if (state.mode() === 'edit') {
+          <g data-editor-helper="true">
+            @for (layer of state.visibleLayers(); track layer.id) {
+              @for (element of layer.elements; track element.id) {
+                @if (isSelected(element)) {
+                  <circle
+                    class="selection-anchor"
+                    [attr.cx]="element.x"
+                    [attr.cy]="element.y"
+                    r="2.2"
+                  />
+                }
+              }
+            }
+          </g>
+        }
+
+        @if (state.project().pageSetup?.showPageBorder ?? true) {
+          <rect
+            class="page-border"
+            x="0"
+            y="0"
+            [attr.width]="state.project().canvas.width"
+            [attr.height]="state.project().canvas.height"
+          />
+        }
+      </svg>
+    </section>
+
+    <aside class="panel right-panel">
+      <section class="panel-section">
+        <h2>Selection</h2>
+        @if (state.selectedElement(); as selected) {
+          <label>
+            Type
+            <input [value]="selected.type" readonly />
+          </label>
+          <label>
+            Name
+            <input
+              [ngModel]="selected.name"
+              (ngModelChange)="updateSelectedString('name', $event)"
+            />
+          </label>
+          <div class="field-grid">
+            <label>
+              X
+              <input
+                type="number"
+                [ngModel]="selected.x"
+                (ngModelChange)="updateSelectedNumber('x', $event)"
+              />
+            </label>
+            <label>
+              Y
+              <input
+                type="number"
+                [ngModel]="selected.y"
+                (ngModelChange)="updateSelectedNumber('y', $event)"
+              />
+            </label>
+            <label>
+              Rotation
+              <input
+                type="number"
+                [ngModel]="selected.rotation"
+                (ngModelChange)="updateSelectedNumber('rotation', $event)"
+              />
+            </label>
+          </div>
+          <label>
+            Boolean mode
+            <select [ngModel]="selected.mode" (ngModelChange)="updateSelectedMode($event)">
+              <option value="additive">additive</option>
+              <option value="subtractive">subtractive</option>
+            </select>
+          </label>
+
+          @switch (selected.type) {
+            @case ('rectangle') {
+              <div class="field-grid">
+                <label
+                  >Width
+                  <input
+                    type="number"
+                    [ngModel]="selected.width"
+                    (ngModelChange)="updateSelectedNumber('width', $event)"
+                /></label>
+                <label
+                  >Height
+                  <input
+                    type="number"
+                    [ngModel]="selected.height"
+                    (ngModelChange)="updateSelectedNumber('height', $event)"
+                /></label>
+                <label
+                  >Radius
+                  <input
+                    type="number"
+                    [ngModel]="selected.radius ?? 0"
+                    (ngModelChange)="updateSelectedNumber('radius', $event)"
+                /></label>
+              </div>
+            }
+            @case ('gear') {
+              <div class="field-grid">
+                <label
+                  >Disc
+                  <input
+                    type="number"
+                    [ngModel]="selected.discRadius"
+                    (ngModelChange)="updateSelectedNumber('discRadius', $event)"
+                /></label>
+                <label
+                  >Tooth
+                  <input
+                    type="number"
+                    [ngModel]="selected.toothHeight"
+                    (ngModelChange)="updateSelectedNumber('toothHeight', $event)"
+                /></label>
+                <label
+                  >Teeth
+                  <input
+                    type="number"
+                    [ngModel]="selected.teeth"
+                    (ngModelChange)="updateSelectedNumber('teeth', $event)"
+                /></label>
+                <label
+                  >Runtime
+                  <input
+                    type="number"
+                    [ngModel]="selected.currentRotation"
+                    (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
+                /></label>
+              </div>
+            }
+          }
+        } @else {
+          <p class="muted">No editable element selected.</p>
+        }
+      </section>
+    </aside>
+  </section>
+
+  @if (isPageSetupOpen()) {
+    <div class="dialog-backdrop" role="presentation" (click)="closePageSetup()">
+      <section
+        class="page-setup-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="page-setup-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="dialog-header">
+          <h2 id="page-setup-title">Page setup</h2>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Close page setup"
+            (click)="closePageSetup()"
+          >
+            x
+          </button>
+        </header>
+
+        <div class="page-setup-grid">
+          <label>
+            Paper size
+            <select
+              [ngModel]="pageSetupDraft().paperSize"
+              (ngModelChange)="updatePageSetupDraft('paperSize', $event)"
+            >
+              @for (paperSize of paperSizes; track paperSize) {
+                <option [value]="paperSize">{{ paperSize }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            Page color
+            <span class="color-choice">
+              <input
+                type="color"
+                [ngModel]="state.project().canvas.backgroundColor ?? '#ffffff'"
+                (ngModelChange)="updatePageColor($event)"
+              />
+              Choose page color
+            </span>
+          </label>
+
+          <fieldset>
+            <legend>Page orientation</legend>
+            <label class="radio-tile">
+              <input
+                type="radio"
+                name="pageOrientation"
+                value="portrait"
+                [ngModel]="pageSetupDraft().orientation"
+                (ngModelChange)="updatePageSetupDraft('orientation', $event)"
+              />
+              Portrait
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>&nbsp;</legend>
+            <label class="radio-tile">
+              <input
+                type="radio"
+                name="pageOrientation"
+                value="landscape"
+                [ngModel]="pageSetupDraft().orientation"
+                (ngModelChange)="updatePageSetupDraft('orientation', $event)"
+              />
+              Landscape
+            </label>
+          </fieldset>
+
+          <label>
+            Margin top (mm)
+            <input
+              type="number"
+              min="0"
+              [ngModel]="pageSetupDraft().marginTop"
+              (ngModelChange)="updatePageSetupNumber('marginTop', $event)"
+            />
+          </label>
+
+          <label>
+            Margin bottom (mm)
+            <input
+              type="number"
+              min="0"
+              [ngModel]="pageSetupDraft().marginBottom"
+              (ngModelChange)="updatePageSetupNumber('marginBottom', $event)"
+            />
+          </label>
+
+          <label>
+            Margin left (mm)
+            <input
+              type="number"
+              min="0"
+              [ngModel]="pageSetupDraft().marginLeft"
+              (ngModelChange)="updatePageSetupNumber('marginLeft', $event)"
+            />
+          </label>
+
+          <label>
+            Margin right (mm)
+            <input
+              type="number"
+              min="0"
+              [ngModel]="pageSetupDraft().marginRight"
+              (ngModelChange)="updatePageSetupNumber('marginRight', $event)"
+            />
+          </label>
+        </div>
+
+        <label class="checkbox-row">
+          <input
+            type="checkbox"
+            [ngModel]="pageSetupDraft().showPageBorder"
+            (ngModelChange)="updatePageSetupDraft('showPageBorder', $event)"
+          />
+          Show page border
+        </label>
+
+        <div class="page-summary">
+          <p>
+            <strong>Canvas:</strong>{{ state.project().canvas.width }} mm x
+            {{ state.project().canvas.height }} mm
+          </p>
+          @if (visibleDesignBounds(); as bounds) {
+            <p>
+              <strong>Visible design bounds:</strong>{{ formatMm(bounds.width) }} mm x
+              {{ formatMm(bounds.height) }} mm
+            </p>
+          } @else {
+            <p><strong>Visible design bounds:</strong>None</p>
+          }
+          <p><strong>Approx. paper:</strong>{{ approxPaperLabel() }}</p>
+        </div>
+
+        <footer class="dialog-actions">
+          <button type="button" (click)="closePageSetup()">Cancel</button>
+          <button type="button" class="primary-button" (click)="applyPageSetup()">Apply</button>
+        </footer>
+      </section>
+    </div>
+  }
+</main>
