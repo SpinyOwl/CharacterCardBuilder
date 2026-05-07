@@ -72,4 +72,57 @@ describe('ProjectStateService', () => {
     expect(state.selectedElementId()).toBe(element?.id);
     expect(state.findElement(element?.id ?? '')?.layer.id).toBe('layer-top-card');
   });
+
+  it('adds elements to the selected group', () => {
+    const state = new ProjectStateService();
+
+    state.selectLayer('layer-top-card');
+    const group = state.addElementToSelectedLayer('group');
+    const rectangle = state.addElementToSelectedLayer('rectangle');
+    const updatedGroup = group ? state.findElement(group.id)?.element : null;
+
+    expect(group?.type).toBe('group');
+    expect(rectangle?.type).toBe('rectangle');
+    expect(
+      updatedGroup?.type === 'group' ? updatedGroup.elements.map((element) => element.id) : [],
+    ).toContain(rectangle?.id);
+    expect(state.findElement(rectangle?.id ?? '')?.element.id).toBe(rectangle?.id);
+  });
+
+  it('reorders layers', () => {
+    const state = new ProjectStateService();
+    const firstLayerId = state.project().layers[0].id;
+
+    state.reorderLayer(0, 1);
+
+    expect(state.project().layers[1].id).toBe(firstLayerId);
+  });
+
+  it('moves an element between layers', () => {
+    const state = new ProjectStateService();
+
+    state.moveElementToContainer('card-body', { kind: 'layer', layerId: 'layer-bottom-disc' }, 0);
+
+    expect(state.project().layers[0].elements[0].id).toBe('card-body');
+    expect(state.findElement('card-body')?.layer.id).toBe('layer-bottom-disc');
+  });
+
+  it('reorders elements inside a group', () => {
+    const state = new ProjectStateService();
+
+    state.selectLayer('layer-top-card');
+    const group = state.addElementToSelectedLayer('group');
+    const rectangle = state.addElementToSelectedLayer('rectangle');
+    state.selectElement(group?.id ?? null);
+    const circle = state.addElementToSelectedLayer('circle');
+
+    expect(group?.type).toBe('group');
+    state.reorderElements({ kind: 'group', groupId: group?.id ?? '' }, 1, 0);
+
+    const updatedGroup = group ? state.findElement(group.id)?.element : null;
+    expect(updatedGroup?.type === 'group' ? updatedGroup.elements[0].id : undefined).toBe(
+      circle?.id,
+    );
+    expect(rectangle?.id).toBeTruthy();
+  });
 });

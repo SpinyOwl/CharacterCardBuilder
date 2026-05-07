@@ -5,10 +5,15 @@ import {
   DesignElementType,
   GearElement,
   isGearElement,
+  isGroupElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { AppMode, CanvasSettings, PageSetup, Project } from '../models/project.model';
 import { normalizeRotation } from '../utils/geometry.utils';
+
+export type ElementContainer =
+  | { kind: 'layer'; layerId: string }
+  | { kind: 'group'; groupId: string };
 
 @Injectable({ providedIn: 'root' })
 export class ProjectStateService {
@@ -69,6 +74,67 @@ export class ProjectStateService {
     }));
   }
 
+  reorderLayer(previousIndex: number, currentIndex: number): void {
+    this.project.update((project) => {
+      const layers = [...project.layers];
+      moveItemInArray(layers, previousIndex, currentIndex);
+      return { ...project, layers };
+    });
+  }
+
+  reorderElements(container: ElementContainer, previousIndex: number, currentIndex: number): void {
+    this.project.update((project) => ({
+      ...project,
+      layers: project.layers.map((layer) => {
+        if (container.kind === 'layer' && layer.id === container.layerId) {
+          const elements = [...layer.elements];
+          moveItemInArray(elements, previousIndex, currentIndex);
+          return { ...layer, elements };
+        }
+
+        return {
+          ...layer,
+          elements:
+            container.kind === 'group'
+              ? reorderGroupElements(layer.elements, container.groupId, previousIndex, currentIndex)
+              : layer.elements,
+        };
+      }),
+    }));
+  }
+
+  moveElementToContainer(elementId: string, target: ElementContainer, targetIndex: number): void {
+    const found = this.findElement(elementId);
+    if (!found || (isGroupElement(found.element) && isDescendant(found.element, target))) {
+      return;
+    }
+
+    this.project.update((project) => {
+      const removal = removeElementFromLayers(project.layers, elementId);
+      if (!removal.element) {
+        return project;
+      }
+
+      return {
+        ...project,
+        layers: insertElementIntoLayers(removal.layers, target, removal.element, targetIndex),
+      };
+    });
+  }
+
+  elementContainer(elementId: string): ElementContainer | null {
+    for (const layer of this.project().layers) {
+      const container = findElementContainer(layer.elements, elementId, {
+        kind: 'layer',
+        layerId: layer.id,
+      });
+      if (container) {
+        return container;
+      }
+    }
+    return null;
+  }
+
   addLayer(): Layer {
     const layerIndex = this.project().layers.length + 1;
     const layer: Layer = {
@@ -98,10 +164,22 @@ export class ProjectStateService {
     }
 
     const element = this.createElement(type, selectedLayerId);
+    const selectedElementId = this.selectedElementId();
+    const selectedGroup = selectedElementId ? this.findElement(selectedElementId) : null;
+    const targetGroupId =
+      selectedGroup && isGroupElement(selectedGroup.element) ? selectedGroup.element.id : null;
+
     this.project.update((project) => ({
       ...project,
       layers: project.layers.map((layer) =>
-        layer.id === selectedLayerId ? { ...layer, elements: [...layer.elements, element] } : layer,
+        layer.id === selectedLayerId
+          ? {
+              ...layer,
+              elements: targetGroupId
+                ? addElementToGroup(layer.elements, targetGroupId, element)
+                : [...layer.elements, element],
+            }
+          : layer,
       ),
     }));
     this.selectedLayerId.set(selectedLayerId);
@@ -128,9 +206,7 @@ export class ProjectStateService {
       ...project,
       layers: project.layers.map((layer) => ({
         ...layer,
-        elements: layer.elements.map((element) =>
-          element.id === elementId ? ({ ...element, ...patch } as DesignElement) : element,
-        ),
+        elements: updateElementInList(layer.elements, elementId, patch),
       })),
     }));
   }
@@ -140,7 +216,7 @@ export class ProjectStateService {
       ...project,
       layers: project.layers.map((layer) => ({
         ...layer,
-        elements: layer.elements.filter((element) => element.id !== elementId),
+        elements: deleteElementFromList(layer.elements, elementId),
       })),
     }));
 
@@ -182,7 +258,7 @@ export class ProjectStateService {
 
   findElement(elementId: string): { layer: Layer; element: DesignElement } | null {
     for (const layer of this.project().layers) {
-      const element = layer.elements.find((candidate) => candidate.id === elementId);
+      const element = findElementInList(layer.elements, elementId);
       if (element) {
         return { layer, element };
       }
@@ -257,6 +333,15 @@ export class ProjectStateService {
           interactive: true,
           currentRotation: 0,
         };
+      case 'group':
+        return {
+          ...base,
+          type: 'group',
+          name: this.createElementName('group'),
+          x: 0,
+          y: 0,
+          elements: [],
+        };
     }
   }
 
@@ -264,7 +349,7 @@ export class ProjectStateService {
     const label = type[0].toUpperCase() + type.slice(1);
     const count =
       this.project()
-        .layers.flatMap((layer) => layer.elements)
+        .layers.flatMap((layer) => flattenElements(layer.elements))
         .filter((element) => element.type === type).length + 1;
     return `${label} ${count}`;
   }
@@ -277,9 +362,221 @@ export class ProjectStateService {
 export function getSelectableElements(project: Project): DesignElement[] {
   return project.layers
     .filter((layer) => layer.visible && !layer.locked)
-    .flatMap((layer) => layer.elements.filter((element) => element.visible && !element.locked));
+    .flatMap((layer) =>
+      flattenElements(layer.elements).filter((element) => element.visible && !element.locked),
+    );
 }
 
 export function canEditElement(layer: Layer, element: DesignElement): boolean {
   return layer.visible && !layer.locked && element.visible && !element.locked;
+}
+
+function updateElementInList(
+  elements: DesignElement[],
+  elementId: string,
+  patch: Partial<DesignElement>,
+): DesignElement[] {
+  return elements.map((element) => {
+    if (element.id === elementId) {
+      return { ...element, ...patch } as DesignElement;
+    }
+    return isGroupElement(element)
+      ? { ...element, elements: updateElementInList(element.elements, elementId, patch) }
+      : element;
+  });
+}
+
+function addElementToGroup(
+  elements: DesignElement[],
+  groupId: string,
+  child: DesignElement,
+): DesignElement[] {
+  return elements.map((element) => {
+    if (!isGroupElement(element)) {
+      return element;
+    }
+    if (element.id === groupId) {
+      return { ...element, elements: [...element.elements, child] };
+    }
+    return { ...element, elements: addElementToGroup(element.elements, groupId, child) };
+  });
+}
+
+function deleteElementFromList(elements: DesignElement[], elementId: string): DesignElement[] {
+  return elements
+    .filter((element) => element.id !== elementId)
+    .map((element) =>
+      isGroupElement(element)
+        ? { ...element, elements: deleteElementFromList(element.elements, elementId) }
+        : element,
+    );
+}
+
+function findElementInList(elements: DesignElement[], elementId: string): DesignElement | null {
+  for (const element of elements) {
+    if (element.id === elementId) {
+      return element;
+    }
+    if (isGroupElement(element)) {
+      const found = findElementInList(element.elements, elementId);
+      if (found) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+function flattenElements(elements: DesignElement[]): DesignElement[] {
+  return elements.flatMap((element) =>
+    isGroupElement(element) ? [element, ...flattenElements(element.elements)] : [element],
+  );
+}
+
+function moveItemInArray<T>(items: T[], previousIndex: number, currentIndex: number): void {
+  const [item] = items.splice(previousIndex, 1);
+  items.splice(currentIndex, 0, item);
+}
+
+function reorderGroupElements(
+  elements: DesignElement[],
+  groupId: string,
+  previousIndex: number,
+  currentIndex: number,
+): DesignElement[] {
+  return elements.map((element) => {
+    if (!isGroupElement(element)) {
+      return element;
+    }
+    if (element.id === groupId) {
+      const children = [...element.elements];
+      moveItemInArray(children, previousIndex, currentIndex);
+      return { ...element, elements: children };
+    }
+    return {
+      ...element,
+      elements: reorderGroupElements(element.elements, groupId, previousIndex, currentIndex),
+    };
+  });
+}
+
+function removeElementFromLayers(
+  layers: Layer[],
+  elementId: string,
+): { layers: Layer[]; element: DesignElement | null } {
+  let removed: DesignElement | null = null;
+  return {
+    layers: layers.map((layer) => {
+      const result = removeElementFromList(layer.elements, elementId);
+      removed ??= result.element;
+      return { ...layer, elements: result.elements };
+    }),
+    element: removed,
+  };
+}
+
+function removeElementFromList(
+  elements: DesignElement[],
+  elementId: string,
+): { elements: DesignElement[]; element: DesignElement | null } {
+  let removed: DesignElement | null = null;
+  const next: DesignElement[] = [];
+
+  for (const element of elements) {
+    if (element.id === elementId) {
+      removed = element;
+      continue;
+    }
+
+    if (isGroupElement(element)) {
+      const result = removeElementFromList(element.elements, elementId);
+      removed ??= result.element;
+      next.push({ ...element, elements: result.elements });
+    } else {
+      next.push(element);
+    }
+  }
+
+  return { elements: next, element: removed };
+}
+
+function insertElementIntoLayers(
+  layers: Layer[],
+  target: ElementContainer,
+  element: DesignElement,
+  targetIndex: number,
+): Layer[] {
+  return layers.map((layer) => {
+    if (target.kind === 'layer' && layer.id === target.layerId) {
+      return { ...layer, elements: insertAt(layer.elements, element, targetIndex) };
+    }
+
+    return {
+      ...layer,
+      elements:
+        target.kind === 'group'
+          ? insertElementIntoGroup(layer.elements, target.groupId, element, targetIndex)
+          : layer.elements,
+    };
+  });
+}
+
+function insertElementIntoGroup(
+  elements: DesignElement[],
+  groupId: string,
+  child: DesignElement,
+  targetIndex: number,
+): DesignElement[] {
+  return elements.map((element) => {
+    if (!isGroupElement(element)) {
+      return element;
+    }
+    if (element.id === groupId) {
+      return { ...element, elements: insertAt(element.elements, child, targetIndex) };
+    }
+    return {
+      ...element,
+      elements: insertElementIntoGroup(element.elements, groupId, child, targetIndex),
+    };
+  });
+}
+
+function insertAt(
+  elements: DesignElement[],
+  element: DesignElement,
+  index: number,
+): DesignElement[] {
+  const next = [...elements];
+  next.splice(Math.max(0, Math.min(index, next.length)), 0, element);
+  return next;
+}
+
+function isDescendant(group: DesignElement, target: ElementContainer): boolean {
+  return (
+    target.kind === 'group' &&
+    isGroupElement(group) &&
+    flattenElements(group.elements).some((child) => child.id === target.groupId)
+  );
+}
+
+function findElementContainer(
+  elements: DesignElement[],
+  elementId: string,
+  container: ElementContainer,
+): ElementContainer | null {
+  for (const element of elements) {
+    if (element.id === elementId) {
+      return container;
+    }
+    if (isGroupElement(element)) {
+      const childContainer = findElementContainer(element.elements, elementId, {
+        kind: 'group',
+        groupId: element.id,
+      });
+      if (childContainer) {
+        return childContainer;
+      }
+    }
+  }
+  return null;
 }

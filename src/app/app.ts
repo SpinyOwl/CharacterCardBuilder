@@ -1,15 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, ViewChild, computed, inject, signal } from '@angular/core';
+import { CdkDrag, CdkDragDrop, CdkDropList, DragDropModule } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
 import { Tree, TreeItem, TreeItemGroup } from '@angular/aria/tree';
 import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
-import { DesignElement, DesignElementType } from './models/element.model';
+import { DesignElement, DesignElementType, isGroupElement } from './models/element.model';
 import { Layer } from './models/layer.model';
 import { ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
-import { ProjectStateService } from './services/project-state.service';
+import { ElementContainer, ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
@@ -45,13 +46,17 @@ type ProjectTreeNode =
       value: string;
       element: DesignElement;
       expanded?: boolean;
+      children: ProjectTreeNode[];
     };
+
+type ProjectDropContainer = { kind: 'root' } | ElementContainer;
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [
     CommonModule,
+    DragDropModule,
     FormsModule,
     MenuBar,
     MenuItem,
@@ -81,6 +86,12 @@ export class App {
   readonly isPageSetupOpen = signal(false);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
+  readonly rootDropContainer: ProjectDropContainer = { kind: 'root' };
+  readonly canEnterProjectDrop = (
+    drag: CdkDrag<ProjectTreeNode>,
+    drop: CdkDropList<ProjectDropContainer>,
+  ): boolean =>
+    drop.data.kind === 'root' ? drag.data.kind === 'layer' : drag.data.kind === 'element';
   readonly selectedProjectTreeValues = computed(() => {
     const selectedElementId = this.state.selectedElementId();
     if (selectedElementId) {
@@ -97,12 +108,7 @@ export class App {
       value: this.layerTreeValue(layer.id),
       layer,
       expanded: true,
-      children: layer.elements.map((element) => ({
-        kind: 'element',
-        name: element.name,
-        value: this.elementTreeValue(element.id),
-        element,
-      })),
+      children: layer.elements.map((element) => this.elementTreeNode(element)),
     })),
   );
   readonly visibleDesignBounds = computed(() => this.measureVisibleDesignBounds());
@@ -294,6 +300,33 @@ export class App {
     }
   }
 
+  onProjectTreeDrop(
+    event: CdkDragDrop<ProjectDropContainer, ProjectDropContainer, ProjectTreeNode>,
+  ): void {
+    const node = event.item.data;
+    const source = event.previousContainer.data;
+    const target = event.container.data;
+
+    if (target.kind === 'root') {
+      if (node.kind === 'layer' && source.kind === 'root') {
+        this.state.reorderLayer(event.previousIndex, event.currentIndex);
+        this.refreshYaml();
+      }
+      return;
+    }
+
+    if (node.kind !== 'element') {
+      return;
+    }
+
+    if (this.sameDropContainer(source, target)) {
+      this.state.reorderElements(target, event.previousIndex, event.currentIndex);
+    } else {
+      this.state.moveElementToContainer(node.element.id, target, event.currentIndex);
+    }
+    this.refreshYaml();
+  }
+
   toggleLayerVisible(layer: Layer, visible: boolean): void {
     this.state.updateLayer(layer.id, { visible });
     if (!visible && this.state.selectedLayerId() === layer.id) {
@@ -337,7 +370,15 @@ export class App {
         return 'pentagon';
       case 'text':
         return 'text_fields';
+      case 'group':
+        return 'folder';
     }
+  }
+
+  childDropContainer(node: ProjectTreeNode): ProjectDropContainer {
+    return node.kind === 'layer'
+      ? { kind: 'layer', layerId: node.layer.id }
+      : { kind: 'group', groupId: node.element.id };
   }
 
   addLayer(): void {
@@ -348,6 +389,33 @@ export class App {
   addElement(type: Exclude<DesignElementType, 'text' | 'polygon'>): void {
     this.state.addElementToSelectedLayer(type);
     this.refreshYaml();
+  }
+
+  private elementTreeNode(element: DesignElement): ProjectTreeNode {
+    return {
+      kind: 'element',
+      name: element.name,
+      value: this.elementTreeValue(element.id),
+      element,
+      expanded: true,
+      children: isGroupElement(element)
+        ? element.elements.map((child) => this.elementTreeNode(child))
+        : [],
+    };
+  }
+
+  private sameDropContainer(first: ProjectDropContainer, second: ProjectDropContainer): boolean {
+    if (first.kind !== second.kind) {
+      return false;
+    }
+    switch (first.kind) {
+      case 'root':
+        return true;
+      case 'layer':
+        return first.layerId === (second as ElementContainer & { kind: 'layer' }).layerId;
+      case 'group':
+        return first.groupId === (second as ElementContainer & { kind: 'group' }).groupId;
+    }
   }
 
   toggleLayerLocked(layer: Layer, locked: boolean): void {
@@ -391,7 +459,7 @@ export class App {
   private measureVisibleDesignBounds(): { width: number; height: number } | null {
     const bounds = this.state
       .visibleLayers()
-      .flatMap((layer) => layer.elements.filter((element) => element.visible))
+      .flatMap((layer) => this.flattenElements(layer.elements).filter((element) => element.visible))
       .map((element) => this.elementBounds(element));
 
     if (bounds.length === 0) {
@@ -452,6 +520,26 @@ export class App {
           maxX: element.x + element.text.length * element.fontSize * 0.55,
           maxY: element.y,
         };
+      case 'group': {
+        const bounds = this.flattenElements(element.elements)
+          .filter((child) => child.visible)
+          .map((child) => this.elementBounds(child));
+        if (bounds.length === 0) {
+          return { minX: element.x, minY: element.y, maxX: element.x, maxY: element.y };
+        }
+        return {
+          minX: Math.min(...bounds.map((bound) => bound.minX)),
+          minY: Math.min(...bounds.map((bound) => bound.minY)),
+          maxX: Math.max(...bounds.map((bound) => bound.maxX)),
+          maxY: Math.max(...bounds.map((bound) => bound.maxY)),
+        };
+      }
     }
+  }
+
+  private flattenElements(elements: DesignElement[]): DesignElement[] {
+    return elements.flatMap((element) =>
+      isGroupElement(element) ? [element, ...this.flattenElements(element.elements)] : [element],
+    );
   }
 }

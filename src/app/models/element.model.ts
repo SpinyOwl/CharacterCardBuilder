@@ -6,7 +6,8 @@ export type DesignElementType =
   | 'triangle'
   | 'polygon'
   | 'text'
-  | 'gear';
+  | 'gear'
+  | 'group';
 
 export interface Point {
   x: number;
@@ -94,13 +95,19 @@ export interface GearElement extends BaseElement {
   labels?: GearLabel[];
 }
 
+export interface GroupElement extends BaseElement {
+  type: 'group';
+  elements: DesignElement[];
+}
+
 export type DesignElement =
   | RectangleElement
   | CircleElement
   | TriangleElement
   | PolygonElement
   | TextElement
-  | GearElement;
+  | GearElement
+  | GroupElement;
 
 export function isGearElement(element: DesignElement): element is GearElement {
   return element.type === 'gear';
@@ -108,4 +115,8 @@ export function isGearElement(element: DesignElement): element is GearElement {
 
 export function isRectangleElement(element: DesignElement): element is RectangleElement {
   return element.type === 'rectangle';
+}
+
+export function isGroupElement(element: DesignElement): element is GroupElement {
+  return element.type === 'group';
 }

@@ -181,6 +181,22 @@ textarea {
   cursor: pointer;
 }
 
+.tree-row.cdk-drag-preview {
+  box-sizing: border-box;
+  border: 1px solid #9da89c;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(24, 31, 27, 0.18);
+}
+
+.tree-row.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+.tree-group.cdk-drop-list-dragging,
+.project-tree.cdk-drop-list-dragging {
+  background: rgba(227, 240, 223, 0.5);
+}
+
 [ngTreeItem]:focus,
 [ngTreeItem]:hover {
   background: #edf5ea;
@@ -208,10 +224,6 @@ li[aria-expanded='false'] + ul[role='group'] {
   padding: 0 0 0 26px;
   margin: 0;
   list-style: none;
-}
-
-.element-row {
-  grid-template-columns: 16px auto minmax(0, 1fr) auto auto;
 }
 
 .muted-row {

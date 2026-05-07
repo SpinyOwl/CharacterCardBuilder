@@ -24,4 +24,45 @@ describe('ImportExportService', () => {
         .some((element) => element.type === 'rectangle' && element.mode === 'subtractive'),
     ).toBe(true);
   });
+
+  it('YAML import preserves grouped child elements', () => {
+    const service = new ImportExportService();
+    const project = createDefaultProject();
+    project.layers[0].elements.push({
+      id: 'group-1',
+      layerId: 'layer-bottom-disc',
+      type: 'group',
+      name: 'Group 1',
+      mode: 'additive',
+      x: 0,
+      y: 0,
+      rotation: 0,
+      visible: true,
+      locked: false,
+      elements: [
+        {
+          id: 'group-rect-1',
+          layerId: 'layer-bottom-disc',
+          type: 'rectangle',
+          name: 'Grouped rectangle',
+          mode: 'additive',
+          x: 10,
+          y: 12,
+          rotation: 0,
+          visible: true,
+          locked: false,
+          width: 20,
+          height: 12,
+          fill: '#ffffff',
+          stroke: '#000000',
+          strokeWidth: 1,
+        },
+      ],
+    });
+
+    const imported = service.importYaml(service.exportYaml(project));
+    const group = imported.layers[0].elements.find((element) => element.type === 'group');
+
+    expect(group?.type === 'group' ? group.elements[0]?.id : undefined).toBe('group-rect-1');
+  });
 });

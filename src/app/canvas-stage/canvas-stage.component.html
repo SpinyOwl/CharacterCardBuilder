@@ -44,7 +44,7 @@
             [attr.height]="state.project().canvas.height"
             fill="#ffffff"
           />
-          @for (element of layer.elements; track element.id) {
+          @for (element of allElements(layer.elements); track element.id) {
             @if (isSubtractiveRectangle(element)) {
               <path
                 [attr.d]="elementPath(element)"
@@ -59,7 +59,7 @@
 
     @for (layer of state.visibleLayers(); track layer.id) {
       <g [attr.opacity]="layer.opacity" [attr.mask]="'url(#' + layerMaskId(layer) + ')'">
-        @for (element of layer.elements; track element.id) {
+        @for (element of allElements(layer.elements); track element.id) {
           @if (isAdditiveVisible(element)) {
             <g
               class="element"
@@ -167,7 +167,7 @@
 
       @if (state.mode() === 'edit') {
         <g data-editor-helper="true">
-          @for (element of layer.elements; track element.id) {
+          @for (element of allElements(layer.elements); track element.id) {
             @if (isSubtractiveRectangle(element)) {
               <path
                 class="subtractive-outline"
@@ -185,8 +185,8 @@
     @if (state.mode() === 'edit') {
       <g data-editor-helper="true">
         @for (layer of state.visibleLayers(); track layer.id) {
-          @for (element of layer.elements; track element.id) {
-            @if (isSelected(element)) {
+          @for (element of allElements(layer.elements); track element.id) {
+            @if (isSelected(element) && !isGroup(element)) {
               @if (isRectangle(element)) {
                 <g class="resize-overlay" [attr.transform]="rectangleTransform(element)">
                   <rect

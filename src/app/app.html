@@ -61,8 +61,8 @@
           value="add-rectangle"
           type="button"
           class="toolbar-icon-button"
-          title="Add rectangle to current layer"
-          aria-label="Add rectangle to current layer"
+          title="Add rectangle to current layer or group"
+          aria-label="Add rectangle to current layer or group"
           (click)="addElement('rectangle')"
         >
           <span class="material-symbols-outlined" aria-hidden="true">rectangle</span>
@@ -72,8 +72,8 @@
           value="add-circle"
           type="button"
           class="toolbar-icon-button"
-          title="Add circle to current layer"
-          aria-label="Add circle to current layer"
+          title="Add circle to current layer or group"
+          aria-label="Add circle to current layer or group"
           (click)="addElement('circle')"
         >
           <span class="material-symbols-outlined" aria-hidden="true">circle</span>
@@ -83,8 +83,8 @@
           value="add-triangle"
           type="button"
           class="toolbar-icon-button"
-          title="Add triangle to current layer"
-          aria-label="Add triangle to current layer"
+          title="Add triangle to current layer or group"
+          aria-label="Add triangle to current layer or group"
           (click)="addElement('triangle')"
         >
           <span class="material-symbols-outlined" aria-hidden="true">change_history</span>
@@ -94,11 +94,22 @@
           value="add-gear"
           type="button"
           class="toolbar-icon-button"
-          title="Add gear to current layer"
-          aria-label="Add gear to current layer"
+          title="Add gear to current layer or group"
+          aria-label="Add gear to current layer or group"
           (click)="addElement('gear')"
         >
           <span class="material-symbols-outlined" aria-hidden="true">settings</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="add-group"
+          type="button"
+          class="toolbar-icon-button"
+          title="Add group to current layer or group"
+          aria-label="Add group to current layer or group"
+          (click)="addElement('group')"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">folder</span>
         </button>
       </div>
       <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
@@ -124,14 +135,18 @@
 
   <section class="workspace">
     <aside class="panel left-panel">
-      <section class="panel-section">
+      <section class="panel-section" cdkDropListGroup>
         <h2>Layers</h2>
         <ul
           ngTree
           #projectTree="ngTree"
+          cdkDropList
           class="project-tree"
           [values]="selectedProjectTreeValues()"
+          [cdkDropListData]="rootDropContainer"
+          [cdkDropListEnterPredicate]="canEnterProjectDrop"
           (valuesChange)="onProjectTreeSelectionChange($event)"
+          (cdkDropListDropped)="onProjectTreeDrop($event)"
           aria-label="Project outline"
           selectionMode="follow"
         >
@@ -145,9 +160,11 @@
           @for (node of nodes; track node.value) {
             <li
               ngTreeItem
+              cdkDrag
               [parent]="parent"
               [value]="node.value"
               [label]="node.name"
+              [cdkDragData]="node"
               [(expanded)]="node.expanded"
               #treeItem="ngTreeItem"
               class="tree-row"
@@ -162,16 +179,20 @@
                   : state.selectElement(node.element.id)
               "
             >
-              <span aria-hidden="true" class="tree-icon material-symbols-outlined expand-icon">{{
-                node.kind === 'layer' ? 'chevron_right' : ''
-              }}</span>
+              <span
+                aria-hidden="true"
+                class="tree-icon material-symbols-outlined expand-icon"
+                cdkDragHandle
+                >{{ node.children.length > 0 ? 'chevron_right' : '' }}</span
+              >
               <span
                 aria-hidden="true"
                 class="tree-icon material-symbols-outlined element-type-icon"
                 [title]="node.kind === 'layer' ? 'Layer' : node.element.type"
+                cdkDragHandle
                 >{{ node.kind === 'layer' ? 'layers' : elementTypeIcon(node.element.type) }}</span
               >
-              <span class="tree-name">{{ node.name }}</span>
+              <span class="tree-name" cdkDragHandle>{{ node.name }}</span>
 
               @if (node.kind === 'layer') {
                 <div class="tree-controls">
@@ -234,8 +255,15 @@
               }
             </li>
 
-            @if (node.kind === 'layer' && node.children.length > 0) {
-              <ul role="group" class="tree-group">
+            @if (node.children.length > 0) {
+              <ul
+                role="group"
+                class="tree-group"
+                cdkDropList
+                [cdkDropListData]="childDropContainer(node)"
+                [cdkDropListEnterPredicate]="canEnterProjectDrop"
+                (cdkDropListDropped)="onProjectTreeDrop($event)"
+              >
                 <ng-template ngTreeItemGroup [ownedBy]="treeItem" #group="ngTreeItemGroup">
                   <ng-template
                     [ngTemplateOutlet]="projectTreeTemplate"
@@ -357,6 +385,9 @@
                     (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
                 /></label>
               </div>
+            }
+            @case ('group') {
+              <p class="muted">Group contains {{ selected.elements.length }} item(s).</p>
             }
           }
         } @else {

@@ -3,8 +3,10 @@ import { Component, ElementRef, ViewChild, inject, output } from '@angular/core'
 import {
   DesignElement,
   GearElement,
+  GroupElement,
   RectangleElement,
   isGearElement,
+  isGroupElement,
   isRectangleElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
@@ -194,6 +196,7 @@ export class CanvasStageComponent {
         return createGearPath(element);
       case 'circle':
       case 'text':
+      case 'group':
         return '';
     }
   }
@@ -203,7 +206,7 @@ export class CanvasStageComponent {
   }
 
   isAdditiveVisible(element: DesignElement): boolean {
-    return element.visible && element.mode === 'additive';
+    return element.visible && element.mode === 'additive' && !isGroupElement(element);
   }
 
   isSubtractiveRectangle(element: DesignElement): element is RectangleElement {
@@ -218,8 +221,18 @@ export class CanvasStageComponent {
     return isGearElement(element);
   }
 
+  isGroup(element: DesignElement): element is GroupElement {
+    return isGroupElement(element);
+  }
+
   isRectangle(element: DesignElement): element is RectangleElement {
     return isRectangleElement(element);
+  }
+
+  allElements(elements: DesignElement[]): DesignElement[] {
+    return elements.flatMap((element) =>
+      isGroupElement(element) ? [element, ...this.allElements(element.elements)] : [element],
+    );
   }
 
   resizeHandleX(element: RectangleElement, handle: ResizeHandle): number {

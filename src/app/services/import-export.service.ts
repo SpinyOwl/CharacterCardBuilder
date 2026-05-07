@@ -177,6 +177,12 @@ function assertElement(value: unknown): DesignElement {
         currentRotation:
           typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
       };
+    case 'group':
+      return {
+        ...base,
+        type: 'group',
+        elements: Array.isArray(value['elements']) ? value['elements'].map(assertElement) : [],
+      };
     default:
       throw new Error(`Unsupported element type: ${String(value['type'])}`);
   }
