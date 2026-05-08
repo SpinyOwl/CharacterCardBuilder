@@ -73,6 +73,11 @@ export interface GearLabel {
   angle: number;
   offsetFromEdge: number;
   rotation: number;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: string | number;
+  fill: string;
+  align: 'start' | 'middle' | 'end';
 }
 
 export interface GearElement extends BaseElement, ShapeStyle {
@@ -82,6 +87,10 @@ export interface GearElement extends BaseElement, ShapeStyle {
   teeth: number;
   toothWidth: number;
   toothShape: number;
+  centerDotRadius: number;
+  centerDotFill: string;
+  centerDotStroke: string;
+  centerDotStrokeWidth: number;
   interactive: true;
   currentRotation: number;
   labels?: GearLabel[];

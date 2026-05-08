@@ -336,11 +336,16 @@ export class ProjectStateService {
           teeth: 12,
           toothWidth: 55,
           toothShape: 60,
+          centerDotRadius: 1.8,
+          centerDotFill: '#392710',
+          centerDotStroke: '#f6d48b',
+          centerDotStrokeWidth: 0.4,
           fill: '#f2c469',
           stroke: '#6e4d19',
           strokeWidth: 1,
           interactive: true,
           currentRotation: 0,
+          labels: [],
         };
       case 'text':
         return {

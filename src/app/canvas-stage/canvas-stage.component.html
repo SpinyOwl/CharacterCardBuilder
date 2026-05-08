@@ -114,7 +114,27 @@
                     }
                     @case ('gear') {
                       <path [attr.d]="elementPath(element)" fill="#ffffff" />
-                      <circle cx="0" cy="0" [attr.r]="element.discRadius * 0.42" fill="#ffffff" />
+                      <circle cx="0" cy="0" [attr.r]="element.centerDotRadius" fill="#ffffff" />
+                      @for (label of element.labels ?? []; track label.id) {
+                        <text
+                          [attr.x]="
+                            math.cos((label.angle * math.PI) / 180) *
+                            (element.discRadius - label.offsetFromEdge)
+                          "
+                          [attr.y]="
+                            math.sin((label.angle * math.PI) / 180) *
+                            (element.discRadius - label.offsetFromEdge)
+                          "
+                          [attr.transform]="labelTransform(element, label)"
+                          [attr.text-anchor]="label.align"
+                          [attr.font-size]="label.fontSize"
+                          [attr.font-family]="label.fontFamily"
+                          [attr.font-weight]="label.fontWeight"
+                          fill="#ffffff"
+                        >
+                          {{ label.text }}
+                        </text>
+                      }
                     }
                     @case ('text') {
                       <text
@@ -205,10 +225,10 @@
                     <circle
                       cx="0"
                       cy="0"
-                      [attr.r]="element.discRadius * 0.42"
-                      fill="#fff7d7"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.r]="element.centerDotRadius"
+                      [attr.fill]="element.centerDotFill"
+                      [attr.stroke]="element.centerDotStroke"
+                      [attr.stroke-width]="element.centerDotStrokeWidth"
                     />
                     @for (label of element.labels ?? []; track label.id) {
                       <text
@@ -220,11 +240,13 @@
                           math.sin((label.angle * math.PI) / 180) *
                           (element.discRadius - label.offsetFromEdge)
                         "
-                        text-anchor="middle"
+                        [attr.transform]="labelTransform(element, label)"
+                        [attr.text-anchor]="label.align"
                         dominant-baseline="middle"
-                        font-size="4"
-                        font-family="Arial, sans-serif"
-                        fill="#392710"
+                        [attr.font-size]="label.fontSize"
+                        [attr.font-family]="label.fontFamily"
+                        [attr.font-weight]="label.fontWeight"
+                        [attr.fill]="label.fill"
                       >
                         {{ label.text }}
                       </text>

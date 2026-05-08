@@ -8,8 +8,11 @@ import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
 import {
   DesignElement,
   DesignElementType,
+  GearElement,
+  GearLabel,
   ShapeElement,
   isGroupElement,
+  isGearElement,
   isShapeElement,
 } from './models/element.model';
 import { Layer } from './models/layer.model';
@@ -86,6 +89,7 @@ export class App {
   readonly isFileMenuOpen = signal(false);
   readonly isImportExportOpen = signal(false);
   readonly isPageSetupOpen = signal(false);
+  readonly selectedGearLabelId = signal<string | null>(null);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
   readonly selectedProjectTreeValues = computed(() => {
@@ -391,7 +395,9 @@ export class App {
       | 'text'
       | 'fontFamily'
       | 'fontWeight'
-      | 'backgroundImage',
+      | 'backgroundImage'
+      | 'centerDotFill'
+      | 'centerDotStroke',
     value: string,
   ): void {
     this.patchSelected({ [property]: value } as Partial<DesignElement>);
@@ -416,8 +422,79 @@ export class App {
     this.patchSelected({ align } as Partial<DesignElement>);
   }
 
+  selectedGearLabel(gear: GearElement): GearLabel | null {
+    const selectedId = this.selectedGearLabelId();
+    return gear.labels?.find((label) => label.id === selectedId) ?? gear.labels?.[0] ?? null;
+  }
+
+  selectGearLabel(labelId: string): void {
+    this.selectedGearLabelId.set(labelId);
+  }
+
+  addGearLabel(gear: GearElement): void {
+    const nextIndex = (gear.labels?.length ?? 0) + 1;
+    const label: GearLabel = {
+      id: `gear-label-${crypto.randomUUID().slice(0, 8)}`,
+      text: `Label ${nextIndex}`,
+      angle: 0,
+      offsetFromEdge: Math.round(gear.discRadius * 0.45),
+      rotation: 0,
+      fontSize: 4,
+      fontFamily: 'Arial, sans-serif',
+      fontWeight: '400',
+      fill: '#392710',
+      align: 'middle',
+    };
+
+    this.state.updateElement(gear.id, {
+      labels: [...(gear.labels ?? []), label],
+    } as Partial<GearElement>);
+    this.selectedGearLabelId.set(label.id);
+    this.refreshYaml();
+  }
+
+  deleteGearLabel(gear: GearElement, labelId: string): void {
+    const labels = (gear.labels ?? []).filter((label) => label.id !== labelId);
+    this.state.updateElement(gear.id, { labels } as Partial<GearElement>);
+    this.selectedGearLabelId.set(labels[0]?.id ?? null);
+    this.refreshYaml();
+  }
+
+  updateGearLabelString(
+    gear: GearElement,
+    labelId: string,
+    property: 'text' | 'fontFamily' | 'fontWeight' | 'fill',
+    value: string,
+  ): void {
+    this.patchGearLabel(gear, labelId, { [property]: value } as Partial<GearLabel>);
+  }
+
+  updateGearLabelNumber(
+    gear: GearElement,
+    labelId: string,
+    property: 'angle' | 'offsetFromEdge' | 'rotation' | 'fontSize',
+    rawValue: string | number,
+  ): void {
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (Number.isFinite(value)) {
+      this.patchGearLabel(gear, labelId, { [property]: value } as Partial<GearLabel>);
+    }
+  }
+
+  updateGearLabelAlign(
+    gear: GearElement,
+    labelId: string,
+    align: 'start' | 'middle' | 'end',
+  ): void {
+    this.patchGearLabel(gear, labelId, { align });
+  }
+
   isShapeElement(element: DesignElement): element is ShapeElement {
     return isShapeElement(element);
+  }
+
+  isGearElement(element: DesignElement): element is GearElement {
+    return isGearElement(element);
   }
 
   private patchSelected(patch: Partial<DesignElement>): void {
@@ -426,6 +503,18 @@ export class App {
       this.state.updateElement(selectedElementId, patch);
       this.refreshYaml();
     }
+  }
+
+  private patchGearLabel(
+    gear: GearElement,
+    labelId: string,
+    patch: Partial<GearLabel>,
+  ): void {
+    const labels = (gear.labels ?? []).map((label) =>
+      label.id === labelId ? { ...label, ...patch } : label,
+    );
+    this.state.updateElement(gear.id, { labels } as Partial<GearElement>);
+    this.refreshYaml();
   }
 
   private currentPageSetup(): PageSetup {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { parse, stringify } from 'yaml';
-import { DesignElement } from '../models/element.model';
+import { DesignElement, GearLabel } from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { PageOrientation, PageSetup, PaperSize, Project } from '../models/project.model';
 
@@ -162,9 +162,16 @@ function assertElement(value: unknown): DesignElement {
         teeth: requiredNumber(value['teeth'], 'Gear teeth'),
         toothWidth: requiredNumber(value['toothWidth'], 'Gear toothWidth'),
         toothShape: requiredNumber(value['toothShape'], 'Gear toothShape'),
+        centerDotRadius: optionalNumber(value['centerDotRadius'], 1.8),
+        centerDotFill:
+          typeof value['centerDotFill'] === 'string' ? value['centerDotFill'] : '#392710',
+        centerDotStroke:
+          typeof value['centerDotStroke'] === 'string' ? value['centerDotStroke'] : '#f6d48b',
+        centerDotStrokeWidth: optionalNumber(value['centerDotStrokeWidth'], 0.4),
         interactive: true,
         currentRotation:
           typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
+        labels: Array.isArray(value['labels']) ? value['labels'].map(assertGearLabel) : [],
       };
     case 'group':
       return {
@@ -175,6 +182,29 @@ function assertElement(value: unknown): DesignElement {
     default:
       throw new Error(`Unsupported element type: ${String(value['type'])}`);
   }
+}
+
+function assertGearLabel(value: unknown): GearLabel {
+  if (!isRecord(value)) {
+    throw new Error('Gear label must be an object.');
+  }
+
+  return {
+    id: requiredString(value['id'], 'Gear label id'),
+    text: requiredString(value['text'], 'Gear label text'),
+    angle: requiredNumber(value['angle'], 'Gear label angle'),
+    offsetFromEdge: requiredNumber(value['offsetFromEdge'], 'Gear label offsetFromEdge'),
+    rotation: typeof value['rotation'] === 'number' ? value['rotation'] : 0,
+    fontSize: typeof value['fontSize'] === 'number' ? value['fontSize'] : 4,
+    fontFamily:
+      typeof value['fontFamily'] === 'string' ? value['fontFamily'] : 'Arial, sans-serif',
+    fontWeight:
+      typeof value['fontWeight'] === 'number' || typeof value['fontWeight'] === 'string'
+        ? value['fontWeight']
+        : '400',
+    fill: typeof value['fill'] === 'string' ? value['fill'] : '#392710',
+    align: value['align'] === 'start' || value['align'] === 'end' ? value['align'] : 'middle',
+  };
 }
 
 function assertPoint(value: unknown): { x: number; y: number } {

@@ -446,6 +446,171 @@
                     (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
                 /></label>
               </div>
+              <fieldset class="inspector-group">
+                <legend>Center dot</legend>
+                <div class="field-grid">
+                  <label>
+                    Radius
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      [ngModel]="selected.centerDotRadius"
+                      (ngModelChange)="updateSelectedNumber('centerDotRadius', $event)"
+                    />
+                  </label>
+                  <label>
+                    Fill
+                    <input
+                      type="color"
+                      [ngModel]="selected.centerDotFill"
+                      (ngModelChange)="updateSelectedString('centerDotFill', $event)"
+                    />
+                  </label>
+                  <label>
+                    Stroke
+                    <input
+                      type="color"
+                      [ngModel]="selected.centerDotStroke"
+                      (ngModelChange)="updateSelectedString('centerDotStroke', $event)"
+                    />
+                  </label>
+                  <label>
+                    Stroke thickness
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      [ngModel]="selected.centerDotStrokeWidth"
+                      (ngModelChange)="updateSelectedNumber('centerDotStrokeWidth', $event)"
+                    />
+                  </label>
+                </div>
+              </fieldset>
+              <fieldset class="inspector-group">
+                <legend>Gear labels</legend>
+                <button type="button" (click)="addGearLabel(selected)">
+                  Add label
+                </button>
+                @if ((selected.labels?.length ?? 0) > 0) {
+                  <label>
+                    Label
+                    <select
+                      [ngModel]="selectedGearLabel(selected)?.id"
+                      (ngModelChange)="selectGearLabel($event)"
+                    >
+                      @for (label of selected.labels ?? []; track label.id) {
+                        <option [value]="label.id">{{ label.text }}</option>
+                      }
+                    </select>
+                  </label>
+                  @if (selectedGearLabel(selected); as label) {
+                    <label>
+                      Text
+                      <input
+                        type="text"
+                        [ngModel]="label.text"
+                        (ngModelChange)="updateGearLabelString(selected, label.id, 'text', $event)"
+                      />
+                    </label>
+                    <div class="field-grid">
+                      <label>
+                        Angle
+                        <input
+                          type="number"
+                          [ngModel]="label.angle"
+                          (ngModelChange)="updateGearLabelNumber(selected, label.id, 'angle', $event)"
+                        />
+                      </label>
+                      <label>
+                        Offset
+                        <input
+                          type="number"
+                          [ngModel]="label.offsetFromEdge"
+                          (ngModelChange)="
+                            updateGearLabelNumber(selected, label.id, 'offsetFromEdge', $event)
+                          "
+                        />
+                      </label>
+                      <label>
+                        Rotation
+                        <input
+                          type="number"
+                          [ngModel]="label.rotation"
+                          (ngModelChange)="
+                            updateGearLabelNumber(selected, label.id, 'rotation', $event)
+                          "
+                        />
+                      </label>
+                      <label>
+                        Color
+                        <input
+                          type="color"
+                          [ngModel]="label.fill"
+                          (ngModelChange)="updateGearLabelString(selected, label.id, 'fill', $event)"
+                        />
+                      </label>
+                      <label>
+                        Size
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          [ngModel]="label.fontSize"
+                          (ngModelChange)="
+                            updateGearLabelNumber(selected, label.id, 'fontSize', $event)
+                          "
+                        />
+                      </label>
+                      <label>
+                        Weight
+                        <select
+                          [ngModel]="label.fontWeight"
+                          (ngModelChange)="
+                            updateGearLabelString(selected, label.id, 'fontWeight', $event)
+                          "
+                        >
+                          <option value="300">Light</option>
+                          <option value="400">Regular</option>
+                          <option value="600">Semi-bold</option>
+                          <option value="700">Bold</option>
+                          <option value="900">Black</option>
+                        </select>
+                      </label>
+                      <label>
+                        Align
+                        <select
+                          [ngModel]="label.align"
+                          (ngModelChange)="updateGearLabelAlign(selected, label.id, $event)"
+                        >
+                          <option value="start">Left</option>
+                          <option value="middle">Center</option>
+                          <option value="end">Right</option>
+                        </select>
+                      </label>
+                    </div>
+                    <label>
+                      Font family
+                      <input
+                        type="text"
+                        [ngModel]="label.fontFamily"
+                        (ngModelChange)="
+                          updateGearLabelString(selected, label.id, 'fontFamily', $event)
+                        "
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      class="danger-button"
+                      (click)="deleteGearLabel(selected, label.id)"
+                    >
+                      Delete label
+                    </button>
+                  }
+                } @else {
+                  <p class="muted">No labels.</p>
+                }
+              </fieldset>
             }
             @case ('text') {
               <fieldset class="inspector-group">

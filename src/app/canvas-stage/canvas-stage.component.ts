@@ -3,6 +3,7 @@ import { Component, ElementRef, ViewChild, inject, output } from '@angular/core'
 import {
   DesignElement,
   GearElement,
+  GearLabel,
   GroupElement,
   Point,
   RectangleElement,
@@ -255,6 +256,12 @@ export class CanvasStageComponent {
     return element.type === 'rectangle'
       ? this.rectangleTransform(element)
       : this.elementTransform(element, true);
+  }
+
+  labelTransform(gear: GearElement, label: GearLabel): string {
+    const x = Math.cos((label.angle * Math.PI) / 180) * (gear.discRadius - label.offsetFromEdge);
+    const y = Math.sin((label.angle * Math.PI) / 180) * (gear.discRadius - label.offsetFromEdge);
+    return `rotate(${label.rotation} ${x} ${y})`;
   }
 
   isAdditiveVisible(element: DesignElement): boolean {
