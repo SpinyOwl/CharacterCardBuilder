@@ -159,7 +159,13 @@
   </header>
 
   <section class="workspace">
-    <aside class="panel left-panel">
+    <aside
+      class="panel left-panel"
+      [class.panel-drop-above]="isProjectTreePanelDropTarget('above')"
+      [class.panel-drop-below]="isProjectTreePanelDropTarget('below')"
+      (dragover)="onProjectPanelDragOver($event)"
+      (drop)="onProjectPanelDrop($event)"
+    >
       <section class="panel-section">
         <h2>Layers</h2>
         <ul
@@ -215,22 +221,30 @@
                     : state.selectElement(node.owner.id)
               "
             >
-              <button
-                type="button"
-                class="tree-expand-button"
-                [disabled]="node.children.length === 0"
-                [title]="isProjectTreeNodeExpanded(node) ? 'Collapse' : 'Expand'"
-                [attr.aria-label]="isProjectTreeNodeExpanded(node) ? 'Collapse' : 'Expand'"
+              <span
+                class="tree-icon material-symbols-outlined expand-icon"
+                [class.expand-toggle]="node.children.length > 0"
+                [attr.data-expand-toggle]="node.children.length > 0 ? 'true' : null"
+                [title]="
+                  node.children.length > 0
+                    ? isProjectTreeNodeExpanded(node)
+                      ? 'Collapse'
+                      : 'Expand'
+                    : null
+                "
+                [attr.aria-label]="
+                  node.children.length > 0
+                    ? isProjectTreeNodeExpanded(node)
+                      ? 'Collapse'
+                      : 'Expand'
+                    : null
+                "
+                [attr.role]="node.children.length > 0 ? 'button' : null"
                 [attr.aria-expanded]="node.children.length > 0 ? isProjectTreeNodeExpanded(node) : null"
                 (click)="$event.stopPropagation(); toggleProjectTreeNodeExpanded(node)"
               >
-                <span
-                  aria-hidden="true"
-                  class="tree-icon material-symbols-outlined expand-icon"
-                  >{{ node.children.length > 0 ? 'chevron_right' : '' }}</span
-                >
-              </button>
-              >
+                {{ node.children.length > 0 ? 'chevron_right' : '' }}
+              </span>
               <span
                 aria-hidden="true"
                 class="tree-icon material-symbols-outlined element-type-icon"

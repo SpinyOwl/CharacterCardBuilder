@@ -130,6 +130,7 @@ export class App {
   readonly isStickyEnabled = signal(false);
   readonly selectedGearLabelId = signal<string | null>(null);
   readonly projectTreeDropTarget = signal<ProjectTreeDropTarget | null>(null);
+  readonly projectTreePanelDropTarget = signal<ProjectTreeDropPosition | null>(null);
   readonly isProjectTreeLayerDragActive = signal(false);
   private projectTreeDragData: ProjectTreeDragData | null = null;
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
@@ -144,16 +145,14 @@ export class App {
     return selectedLayerId ? [this.layerTreeValue(selectedLayerId)] : [];
   });
   readonly projectTreeNodes = computed<ProjectTreeNode[]>(() =>
-    this.state.project().layers.map((layer, index) => ({
+    this.visualStack(this.state.project().layers).map(({ item: layer, index }) => ({
       kind: 'layer',
       name: layer.name,
       value: this.layerTreeValue(layer.id),
       layer,
       index,
       expanded: true,
-      children: layer.elements.map((element, elementIndex) =>
-        this.elementTreeNode(element, { kind: 'layer', layerId: layer.id }, elementIndex),
-      ),
+      children: this.elementTreeNodes(layer.elements, { kind: 'layer', layerId: layer.id }),
     })),
   );
   readonly visibleDesignBounds = computed(() => this.measureVisibleDesignBounds());
@@ -461,9 +460,11 @@ export class App {
     }
 
     event.preventDefault();
+    event.stopPropagation();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
+    this.projectTreePanelDropTarget.set(null);
     this.projectTreeDropTarget.set({
       value: node.value,
       position: this.projectTreeDropPosition(event, node),
@@ -478,9 +479,10 @@ export class App {
     }
 
     event.preventDefault();
+    event.stopPropagation();
     const position = this.projectTreeDropPosition(event, node);
     if (dragData.kind === 'layer' && node.kind === 'layer') {
-      const targetIndex = position === 'below' ? node.index + 1 : node.index;
+      const targetIndex = this.visualDropIndex(node.index, position);
       this.state.reorderLayer(
         dragData.index,
         this.adjustSameContainerIndex(dragData.index, targetIndex),
@@ -499,6 +501,42 @@ export class App {
     this.clearProjectTreeDrag();
   }
 
+  onProjectPanelDragOver(event: DragEvent): void {
+    if (
+      this.projectTreeDragData?.kind !== 'layer' ||
+      (event.target instanceof HTMLElement && event.target.closest('.tree-row'))
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.projectTreeDropTarget.set(null);
+    this.projectTreePanelDropTarget.set(this.projectPanelDropPosition(event));
+  }
+
+  onProjectPanelDrop(event: DragEvent): void {
+    const dragData = this.projectTreeDragData;
+    if (
+      dragData?.kind !== 'layer' ||
+      (event.target instanceof HTMLElement && event.target.closest('.tree-row'))
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    const targetIndex =
+      this.projectPanelDropPosition(event) === 'above' ? this.state.project().layers.length : 0;
+    this.state.reorderLayer(
+      dragData.index,
+      this.adjustSameContainerIndex(dragData.index, targetIndex),
+    );
+    this.refreshYaml();
+    this.clearProjectTreeDrag();
+  }
+
   onProjectTreeDragEnd(): void {
     this.clearProjectTreeDrag();
   }
@@ -506,6 +544,10 @@ export class App {
   isProjectTreeDropTarget(node: ProjectTreeNode, position: ProjectTreeDropPosition): boolean {
     const target = this.projectTreeDropTarget();
     return target?.value === node.value && target.position === position;
+  }
+
+  isProjectTreePanelDropTarget(position: ProjectTreeDropPosition): boolean {
+    return this.projectTreePanelDropTarget() === position;
   }
 
   isProjectTreeNodeExpanded(node: ProjectTreeNode): boolean {
@@ -641,11 +683,18 @@ export class App {
       index,
       expanded: true,
       children: isGroupElement(element)
-        ? element.elements.map((child, childIndex) =>
-            this.elementTreeNode(child, { kind: 'group', groupId: element.id }, childIndex),
-          )
+        ? this.elementTreeNodes(element.elements, { kind: 'group', groupId: element.id })
         : interactionNodes,
     };
+  }
+
+  private elementTreeNodes(
+    elements: DesignElement[],
+    container: ElementContainer,
+  ): ProjectTreeNode[] {
+    return this.visualStack(elements).map(({ item, index }) =>
+      this.elementTreeNode(item, container, index),
+    );
   }
 
   private canDropProjectTreeNode(
@@ -708,17 +757,41 @@ export class App {
 
     return {
       container: node.container,
-      index: position === 'below' ? node.index + 1 : node.index,
+      index: this.visualDropIndex(node.index, position),
     };
+  }
+
+  private visualDropIndex(sourceIndex: number, position: ProjectTreeDropPosition): number {
+    return position === 'above' ? sourceIndex + 1 : sourceIndex;
   }
 
   private adjustSameContainerIndex(sourceIndex: number, targetIndex: number): number {
     return sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
   }
 
+  private visualStack<T>(items: T[]): Array<{ item: T; index: number }> {
+    return items
+      .map((item, index) => ({ item, index }))
+      .reverse();
+  }
+
+  private projectPanelDropPosition(event: DragEvent): ProjectTreeDropPosition {
+    const panel = event.currentTarget as HTMLElement;
+    const rows = Array.from(panel.querySelectorAll<HTMLElement>('.project-tree > .tree-row'));
+    if (rows.length === 0) {
+      return 'above';
+    }
+
+    const firstRowTop = rows[0].getBoundingClientRect().top;
+    const lastRowBottom = rows[rows.length - 1].getBoundingClientRect().bottom;
+    const midpoint = firstRowTop + (lastRowBottom - firstRowTop) / 2;
+    return event.clientY < midpoint ? 'above' : 'below';
+  }
+
   private clearProjectTreeDrag(): void {
     this.projectTreeDragData = null;
     this.projectTreeDropTarget.set(null);
+    this.projectTreePanelDropTarget.set(null);
     this.isProjectTreeLayerDragActive.set(false);
   }
 
