@@ -1,8 +1,29 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createDefaultProject } from '../models/default-project';
 import { ProjectStateService, getSelectableElements } from './project-state.service';
 
 describe('ProjectStateService', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('persists project changes between service instances', () => {
+    const state = new ProjectStateService();
+
+    state.updateCanvas({ width: 123 });
+
+    expect(new ProjectStateService().project().canvas.width).toBe(123);
+  });
+
+  it('loads the default project when stored project data is invalid', () => {
+    localStorage.setItem('character-card-builder:current-project', JSON.stringify({ version: 999 }));
+
+    const state = new ProjectStateService();
+
+    expect(state.project().version).toBe(1);
+    expect(state.project().layers.length).toBeGreaterThan(0);
+  });
+
   it('edit mode drag moves gear instead of rotating it', () => {
     const state = new ProjectStateService();
     const gear = state.findElement('gear-main')?.element;

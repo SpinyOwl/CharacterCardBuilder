@@ -1,6 +1,7 @@
 import { Injectable, computed, signal } from '@angular/core';
 
 export type ApplicationTheme = 'light' | 'dark';
+export type CanvasViewMode = 'fit' | 'scaled';
 
 export interface AppSettings {
   theme: ApplicationTheme;
@@ -9,6 +10,8 @@ export interface AppSettings {
   selectionHandleSize: number;
   gridEnabled: boolean;
   gridSize: number;
+  canvasViewMode: CanvasViewMode;
+  canvasScale: number;
 }
 
 const SETTINGS_STORAGE_KEY = 'character-card-builder:app-settings';
@@ -19,8 +22,12 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectionHandleSize: 2.8,
   gridEnabled: false,
   gridSize: 5,
+  canvasViewMode: 'fit',
+  canvasScale: 1,
 };
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+const MIN_CANVAS_SCALE = 0.25;
+const MAX_CANVAS_SCALE = 4;
 
 @Injectable({ providedIn: 'root' })
 export class AppSettingsService {
@@ -35,6 +42,8 @@ export class AppSettingsService {
   readonly selectionHandleSize = computed(() => this.settingsState().selectionHandleSize);
   readonly gridEnabled = computed(() => this.settingsState().gridEnabled);
   readonly gridSize = computed(() => this.settingsState().gridSize);
+  readonly canvasViewMode = computed(() => this.settingsState().canvasViewMode);
+  readonly canvasScale = computed(() => this.settingsState().canvasScale);
 
   updateTheme(theme: ApplicationTheme): void {
     this.updateSettings({ theme });
@@ -72,6 +81,17 @@ export class AppSettingsService {
     });
   }
 
+  updateCanvasViewMode(canvasViewMode: CanvasViewMode): void {
+    this.updateSettings({ canvasViewMode });
+  }
+
+  updateCanvasScale(canvasScale: number): void {
+    this.updateSettings({
+      canvasViewMode: 'scaled',
+      canvasScale: this.normalizeCanvasScale(canvasScale),
+    });
+  }
+
   private updateSettings(patch: Partial<AppSettings>): void {
     this.settingsState.update((settings) => {
       const nextSettings = { ...settings, ...patch };
@@ -102,6 +122,8 @@ export class AppSettingsService {
         ),
         gridEnabled: settings.gridEnabled === true,
         gridSize: this.normalizePositiveNumber(settings.gridSize, DEFAULT_SETTINGS.gridSize),
+        canvasViewMode: settings.canvasViewMode === 'scaled' ? 'scaled' : 'fit',
+        canvasScale: this.normalizeCanvasScale(settings.canvasScale),
       };
     } catch {
       return DEFAULT_SETTINGS;
@@ -124,5 +146,12 @@ export class AppSettingsService {
 
   private normalizePositiveNumber(value: unknown, fallback: number): number {
     return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private normalizeCanvasScale(value: unknown): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return DEFAULT_SETTINGS.canvasScale;
+    }
+    return Math.min(MAX_CANVAS_SCALE, Math.max(MIN_CANVAS_SCALE, value));
   }
 }

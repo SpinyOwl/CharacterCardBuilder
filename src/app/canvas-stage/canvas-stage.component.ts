@@ -17,6 +17,7 @@ import {
 import { Layer } from '../models/layer.model';
 import { AppSettingsService } from '../services/app-settings.service';
 import { ProjectStateService } from '../services/project-state.service';
+import { CanvasViewMode } from '../services/app-settings.service';
 import { createGearPath } from '../utils/gear.utils';
 import { createPolygonPath, createTrianglePath, roundedRectPath } from '../utils/geometry.utils';
 
@@ -73,6 +74,8 @@ export class CanvasStageComponent {
   @Input() stickyPointsEnabled = false;
   @Input() gridEnabled = false;
   @Input() gridSize = 5;
+  @Input() canvasViewMode: CanvasViewMode = 'fit';
+  @Input() canvasScale = 1;
   @ViewChild('scene', { static: false }) private readonly scene?: ElementRef<SVGSVGElement>;
 
   readonly projectChanged = output<void>();
@@ -602,6 +605,28 @@ export class CanvasStageComponent {
 
   showGrid(): boolean {
     return this.gridEnabled && this.state.mode() === 'edit';
+  }
+
+  isFitCanvasView(): boolean {
+    return this.canvasViewMode === 'fit';
+  }
+
+  normalizedCanvasScale(): number {
+    return Number.isFinite(this.canvasScale)
+      ? Math.min(4, Math.max(0.25, this.canvasScale))
+      : 1;
+  }
+
+  scaledCanvasWidthMm(): number | null {
+    return this.isFitCanvasView()
+      ? null
+      : this.state.project().canvas.width * this.normalizedCanvasScale();
+  }
+
+  scaledCanvasHeightMm(): number | null {
+    return this.isFitCanvasView()
+      ? null
+      : this.state.project().canvas.height * this.normalizedCanvasScale();
   }
 
   private moveElementFromPointer(

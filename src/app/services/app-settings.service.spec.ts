@@ -15,6 +15,8 @@ describe('AppSettingsService', () => {
     expect(settings.selectionHandleSize()).toBe(2.8);
     expect(settings.gridEnabled()).toBe(false);
     expect(settings.gridSize()).toBe(5);
+    expect(settings.canvasViewMode()).toBe('fit');
+    expect(settings.canvasScale()).toBe(1);
   });
 
   it('persists the selected theme between service instances', () => {
@@ -87,5 +89,47 @@ describe('AppSettingsService', () => {
 
     expect(settings.gridEnabled()).toBe(false);
     expect(settings.gridSize()).toBe(5);
+  });
+
+  it('persists canvas view settings between service instances', () => {
+    const settings = new AppSettingsService();
+
+    settings.updateCanvasScale(1.75);
+    settings.updateCanvasViewMode('fit');
+
+    let reloadedSettings = new AppSettingsService();
+    expect(reloadedSettings.canvasViewMode()).toBe('fit');
+    expect(reloadedSettings.canvasScale()).toBe(1.75);
+
+    reloadedSettings.updateCanvasScale(0.5);
+    reloadedSettings = new AppSettingsService();
+    expect(reloadedSettings.canvasViewMode()).toBe('scaled');
+    expect(reloadedSettings.canvasScale()).toBe(0.5);
+  });
+
+  it('falls back to defaults or clamps invalid canvas view settings', () => {
+    localStorage.setItem(
+      'character-card-builder:app-settings',
+      JSON.stringify({
+        canvasViewMode: 'full',
+        canvasScale: 12,
+      }),
+    );
+
+    let settings = new AppSettingsService();
+    expect(settings.canvasViewMode()).toBe('fit');
+    expect(settings.canvasScale()).toBe(4);
+
+    localStorage.setItem(
+      'character-card-builder:app-settings',
+      JSON.stringify({
+        canvasViewMode: 'scaled',
+        canvasScale: 0.1,
+      }),
+    );
+
+    settings = new AppSettingsService();
+    expect(settings.canvasViewMode()).toBe('scaled');
+    expect(settings.canvasScale()).toBe(0.25);
   });
 });

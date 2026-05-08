@@ -1,4 +1,8 @@
-<section class="canvas-stage">
+<section
+  class="canvas-stage"
+  [class.canvas-stage-fit]="isFitCanvasView()"
+  [class.canvas-stage-scaled]="!isFitCanvasView()"
+>
   <svg
     #scene
     class="scene"
@@ -6,6 +10,8 @@
     [attr.viewBox]="'0 0 ' + state.project().canvas.width + ' ' + state.project().canvas.height"
     [attr.width]="state.project().canvas.width + 'mm'"
     [attr.height]="state.project().canvas.height + 'mm'"
+    [style.width.mm]="scaledCanvasWidthMm()"
+    [style.height.mm]="scaledCanvasHeightMm()"
     (pointermove)="onSvgPointerMove($event)"
     (pointerup)="onSvgPointerUp()"
     (pointerleave)="onSvgPointerUp()"

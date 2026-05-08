@@ -6,24 +6,42 @@
 .canvas-stage {
   display: grid;
   min-height: 0;
-  place-items: center;
-  overflow: auto;
-  padding: 18px;
+  padding: 0;
   border: 1px solid var(--app-border, #c4cbc0);
   background: var(--stage-bg, #d6dcd2);
   user-select: none;
   -webkit-user-select: none;
 }
 
+.canvas-stage-fit {
+  place-items: center;
+  overflow: hidden;
+}
+
+.canvas-stage-scaled {
+  place-items: start;
+  overflow: auto;
+}
+
 .scene {
-  width: min(100%, 980px);
-  height: auto;
   border: 1px solid var(--stage-border, #9aa397);
   background: var(--page-bg, #ffffff);
   box-shadow: 0 10px 24px var(--stage-shadow, rgba(24, 31, 27, 0.16));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.canvas-stage-fit .scene {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.canvas-stage-scaled .scene {
+  max-width: none;
+  max-height: none;
 }
 
 .scene * {

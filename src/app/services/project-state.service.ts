@@ -14,6 +14,7 @@ import {
 import { Layer } from '../models/layer.model';
 import { AppMode, CanvasSettings, PageSetup, Project } from '../models/project.model';
 import { normalizeRotation } from '../utils/geometry.utils';
+import { assertProject } from './import-export.service';
 
 export type ElementContainer =
   | { kind: 'layer'; layerId: string }
@@ -25,9 +26,11 @@ export interface ElementViewTransform {
   rotation: number;
 }
 
+const PROJECT_STORAGE_KEY = 'character-card-builder:current-project';
+
 @Injectable({ providedIn: 'root' })
 export class ProjectStateService {
-  readonly project = signal<Project>(createDefaultProject());
+  readonly project = signal<Project>(loadStoredProject());
   readonly mode = signal<AppMode>('edit');
   readonly selectedElementId = signal<string | null>(null);
   readonly selectedLayerId = signal<string | null>('layer-top-card');
@@ -46,6 +49,7 @@ export class ProjectStateService {
 
   setProject(project: Project): void {
     this.project.set(project);
+    this.persistProject();
     this.selectedLayerId.set(project.layers[0]?.id ?? null);
     this.selectedElementId.set(null);
     this.viewTransforms.set({});
@@ -93,7 +97,7 @@ export class ProjectStateService {
   }
 
   updateLayer(layerId: string, patch: Partial<Omit<Layer, 'id' | 'elements'>>): void {
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: project.layers.map((layer) =>
         layer.id === layerId ? { ...layer, ...patch } : layer,
@@ -102,7 +106,7 @@ export class ProjectStateService {
   }
 
   reorderLayer(previousIndex: number, currentIndex: number): void {
-    this.project.update((project) => {
+    this.updateProject((project) => {
       const layers = [...project.layers];
       moveItemInArray(layers, previousIndex, currentIndex);
       return { ...project, layers };
@@ -110,7 +114,7 @@ export class ProjectStateService {
   }
 
   reorderElements(container: ElementContainer, previousIndex: number, currentIndex: number): void {
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: project.layers.map((layer) => {
         if (container.kind === 'layer' && layer.id === container.layerId) {
@@ -140,7 +144,7 @@ export class ProjectStateService {
       return;
     }
 
-    this.project.update((project) => {
+    this.updateProject((project) => {
       const removal = removeElementFromLayers(project.layers, elementId);
       if (!removal.element) {
         return project;
@@ -177,7 +181,7 @@ export class ProjectStateService {
       elements: [],
     };
 
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: [...project.layers, layer],
     }));
@@ -198,7 +202,7 @@ export class ProjectStateService {
     const targetGroupId =
       selectedGroup && isGroupElement(selectedGroup.element) ? selectedGroup.element.id : null;
 
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: project.layers.map((layer) =>
         layer.id === selectedLayerId
@@ -217,14 +221,14 @@ export class ProjectStateService {
   }
 
   updateCanvas(patch: Partial<CanvasSettings>): void {
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       canvas: { ...project.canvas, ...patch },
     }));
   }
 
   updatePageSetup(pageSetup: PageSetup): void {
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       pageSetup,
     }));
@@ -236,7 +240,7 @@ export class ProjectStateService {
       return;
     }
 
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: project.layers.map((layer) => ({
         ...layer,
@@ -269,7 +273,7 @@ export class ProjectStateService {
       return;
     }
 
-    this.project.update((project) => ({
+    this.updateProject((project) => ({
       ...project,
       layers: project.layers.map((layer) => ({
         ...layer,
@@ -518,11 +522,33 @@ export class ProjectStateService {
     return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
   }
 
+  private updateProject(updater: (project: Project) => Project): void {
+    this.project.update(updater);
+    this.persistProject();
+  }
+
+  private persistProject(): void {
+    try {
+      globalThis.localStorage?.setItem(PROJECT_STORAGE_KEY, JSON.stringify(this.project()));
+    } catch {
+      // Storage can be unavailable in restricted browser contexts.
+    }
+  }
+
   private updateViewTransform(elementId: string, transform: ElementViewTransform): void {
     this.viewTransforms.update((transforms) => ({
       ...transforms,
       [elementId]: transform,
     }));
+  }
+}
+
+function loadStoredProject(): Project {
+  try {
+    const storedProject = globalThis.localStorage?.getItem(PROJECT_STORAGE_KEY);
+    return storedProject ? assertProject(JSON.parse(storedProject)) : createDefaultProject();
+  } catch {
+    return createDefaultProject();
   }
 }
 

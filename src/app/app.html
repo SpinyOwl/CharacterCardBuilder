@@ -188,6 +188,54 @@
       <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
         <button
           ngToolbarWidget
+          value="fit-canvas"
+          type="button"
+          class="toolbar-icon-button"
+          [class.active]="appSettings.canvasViewMode() === 'fit'"
+          title="Fit canvas to view"
+          aria-label="Fit canvas to view"
+          [attr.aria-pressed]="appSettings.canvasViewMode() === 'fit'"
+          (click)="setCanvasFitMode()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">fit_screen</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="zoom-out"
+          type="button"
+          class="toolbar-icon-button"
+          title="Zoom out"
+          aria-label="Zoom out"
+          (click)="adjustCanvasScale(-canvasScaleStep)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">remove</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="scale-1"
+          type="button"
+          class="toolbar-text-button"
+          [class.active]="isCanvasScaleActive(1)"
+          title="Set canvas scale to 1:1"
+          aria-label="Set canvas scale to 1:1"
+          [attr.aria-pressed]="isCanvasScaleActive(1)"
+          (click)="setCanvasScale(1)"
+        >
+          1:1
+        </button>
+        <button
+          ngToolbarWidget
+          value="zoom-in"
+          type="button"
+          class="toolbar-icon-button"
+          title="Zoom in"
+          aria-label="Zoom in"
+          (click)="adjustCanvasScale(canvasScaleStep)"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        </button>
+        <button
+          ngToolbarWidget
           value="toggle-mode"
           type="button"
           class="toolbar-icon-button"
@@ -206,23 +254,25 @@
     </div>
   </header>
 
-  <section class="workspace">
+  <section class="workspace" [style.grid-template-columns]="workspaceGridColumns()">
     <aside
       class="panel left-panel"
+      [class.panel-collapsed]="isLeftPanelCollapsed()"
       [class.panel-drop-above]="isProjectTreePanelDropTarget('above')"
       [class.panel-drop-below]="isProjectTreePanelDropTarget('below')"
       (dragover)="onProjectPanelDragOver($event)"
       (drop)="onProjectPanelDrop($event)"
     >
-      <section class="panel-section">
-        <h2>Layers</h2>
+      @if (!isLeftPanelCollapsed()) {
+        <section class="panel-section">
+          <h2>Element tree</h2>
         <ul
           ngTree
           #projectTree="ngTree"
           class="project-tree"
           [values]="selectedProjectTreeValues()"
           (valuesChange)="onProjectTreeSelectionChange($event)"
-          aria-label="Project outline"
+          aria-label="Element tree"
           selectionMode="follow"
         >
           <ng-template
@@ -423,6 +473,7 @@
                       node.interaction.visible ? 'visibility' : 'visibility_off'
                     }}</span>
                   </button>
+                  <span aria-hidden="true"></span>
                   <button
                     type="button"
                     class="tree-icon-button danger-button"
@@ -456,18 +507,38 @@
             }
           }
         </ng-template>
-      </section>
+        </section>
+      }
     </aside>
+
+    <div
+      class="panel-resize-handle left-panel-resize-handle"
+      role="separator"
+      aria-label="Resize element tree panel"
+      title="Resize element tree panel"
+      (pointerdown)="onPanelResizePointerDown($event, 'left')"
+    ></div>
 
     <app-canvas-stage
       [stickyPointsEnabled]="isStickyEnabled()"
       [gridEnabled]="appSettings.gridEnabled()"
       [gridSize]="appSettings.gridSize()"
+      [canvasViewMode]="appSettings.canvasViewMode()"
+      [canvasScale]="appSettings.canvasScale()"
       (projectChanged)="refreshYaml()"
     />
 
-    <aside class="panel right-panel">
-      <section class="panel-section">
+    <div
+      class="panel-resize-handle right-panel-resize-handle"
+      role="separator"
+      aria-label="Resize selection panel"
+      title="Resize selection panel"
+      (pointerdown)="onPanelResizePointerDown($event, 'right')"
+    ></div>
+
+    <aside class="panel right-panel" [class.panel-collapsed]="isRightPanelCollapsed()">
+      @if (!isRightPanelCollapsed()) {
+        <section class="panel-section">
         <h2>Selection</h2>
         @if (state.selectedElement(); as selected) {
           <label>
@@ -965,7 +1036,8 @@
         } @else {
           <p class="muted">No editable element selected.</p>
         }
-      </section>
+        </section>
+      }
     </aside>
   </section>
 

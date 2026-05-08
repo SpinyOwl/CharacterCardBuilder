@@ -27,6 +27,23 @@ body {
   box-shadow: inset 0 0 0 1px var(--app-selected-text);
 }
 
+.panel-collapsed {
+  border-width: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.panel-resize-handle {
+  height: 100%;
+  background: var(--app-border);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.panel-resize-handle:hover {
+  background: var(--app-hover-bg);
+}
+
 .left-panel.panel-drop-above {
   box-shadow: inset 0 3px var(--app-selected-text);
 }
@@ -37,4 +54,11 @@ body {
 
 .tree-row .expand-toggle {
   cursor: pointer;
+}
+
+.toolbar-text-button {
+  min-width: 38px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
 }

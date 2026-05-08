@@ -93,6 +93,16 @@ type ProjectTreeDropTarget = {
   position: ProjectTreeDropPosition;
 };
 
+type SidePanel = 'left' | 'right';
+
+const DEFAULT_SIDE_PANEL_WIDTH = 320;
+const MIN_SIDE_PANEL_WIDTH = 180;
+const MAX_SIDE_PANEL_WIDTH = 520;
+const COLLAPSED_SIDE_PANEL_WIDTH = 0;
+const SIDE_PANEL_SEPARATOR_WIDTH = 8;
+const SIDE_PANEL_COLLAPSE_THRESHOLD = 96;
+const CANVAS_SCALE_STEP = 0.25;
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -132,7 +142,17 @@ export class App {
   readonly projectTreeDropTarget = signal<ProjectTreeDropTarget | null>(null);
   readonly projectTreePanelDropTarget = signal<ProjectTreeDropPosition | null>(null);
   readonly isProjectTreeLayerDragActive = signal(false);
+  readonly leftPanelWidth = signal(DEFAULT_SIDE_PANEL_WIDTH);
+  readonly rightPanelWidth = signal(DEFAULT_SIDE_PANEL_WIDTH);
   private projectTreeDragData: ProjectTreeDragData | null = null;
+  private sidePanelResize:
+    | {
+        panel: SidePanel;
+        startX: number;
+        startWidth: number;
+      }
+    | null = null;
+  readonly canvasScaleStep = CANVAS_SCALE_STEP;
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
   readonly selectedProjectTreeValues = computed(() => {
@@ -186,6 +206,48 @@ export class App {
   constructor() {
     this.refreshYaml();
   }
+
+  workspaceGridColumns(): string {
+    return `${this.sidePanelColumnWidth('left')}px ${SIDE_PANEL_SEPARATOR_WIDTH}px minmax(240px, 1fr) ${SIDE_PANEL_SEPARATOR_WIDTH}px ${this.sidePanelColumnWidth('right')}px`;
+  }
+
+  isLeftPanelCollapsed(): boolean {
+    return this.isSidePanelCollapsed('left');
+  }
+
+  isRightPanelCollapsed(): boolean {
+    return this.isSidePanelCollapsed('right');
+  }
+
+  onPanelResizePointerDown(event: PointerEvent, panel: SidePanel): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.sidePanelResize = {
+      panel,
+      startX: event.clientX,
+      startWidth: this.sidePanelWidth(panel),
+    };
+    window.addEventListener('pointermove', this.onPanelResizePointerMove);
+    window.addEventListener('pointerup', this.onPanelResizePointerUp, { once: true });
+  }
+
+  private readonly onPanelResizePointerMove = (event: PointerEvent): void => {
+    if (!this.sidePanelResize) {
+      return;
+    }
+
+    const delta =
+      this.sidePanelResize.panel === 'left'
+        ? event.clientX - this.sidePanelResize.startX
+        : this.sidePanelResize.startX - event.clientX;
+    const width = this.sidePanelResize.startWidth + delta;
+    this.setSidePanelWidth(this.sidePanelResize.panel, width);
+  };
+
+  private readonly onPanelResizePointerUp = (): void => {
+    this.sidePanelResize = null;
+    window.removeEventListener('pointermove', this.onPanelResizePointerMove);
+  };
 
   setMode(mode: 'edit' | 'view'): void {
     this.state.setMode(mode);
@@ -300,6 +362,25 @@ export class App {
     this.appSettings.updateGridSize(this.appSettings.gridSize() + delta);
   }
 
+  setCanvasFitMode(): void {
+    this.appSettings.updateCanvasViewMode('fit');
+  }
+
+  setCanvasScale(scale: number): void {
+    this.appSettings.updateCanvasScale(scale);
+  }
+
+  adjustCanvasScale(delta: number): void {
+    this.appSettings.updateCanvasScale(this.appSettings.canvasScale() + delta);
+  }
+
+  isCanvasScaleActive(scale: number): boolean {
+    return (
+      this.appSettings.canvasViewMode() === 'scaled' &&
+      Math.abs(this.appSettings.canvasScale() - scale) < 0.001
+    );
+  }
+
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {
     this.pageSetupDraft.update((draft) => ({ ...draft, [property]: value }));
   }
@@ -376,6 +457,30 @@ export class App {
 
   formatMm(value: number): string {
     return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  }
+
+  private sidePanelWidth(panel: SidePanel): number {
+    return panel === 'left' ? this.leftPanelWidth() : this.rightPanelWidth();
+  }
+
+  private sidePanelColumnWidth(panel: SidePanel): number {
+    return this.isSidePanelCollapsed(panel) ? COLLAPSED_SIDE_PANEL_WIDTH : this.sidePanelWidth(panel);
+  }
+
+  private isSidePanelCollapsed(panel: SidePanel): boolean {
+    return this.sidePanelWidth(panel) < SIDE_PANEL_COLLAPSE_THRESHOLD;
+  }
+
+  private setSidePanelWidth(panel: SidePanel, rawWidth: number): void {
+    const width =
+      rawWidth < SIDE_PANEL_COLLAPSE_THRESHOLD
+        ? COLLAPSED_SIDE_PANEL_WIDTH
+        : Math.min(MAX_SIDE_PANEL_WIDTH, Math.max(MIN_SIDE_PANEL_WIDTH, rawWidth));
+    if (panel === 'left') {
+      this.leftPanelWidth.set(width);
+      return;
+    }
+    this.rightPanelWidth.set(width);
   }
 
   onProjectTreeSelectionChange(values: string[]): void {
