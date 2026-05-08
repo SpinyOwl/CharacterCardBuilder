@@ -331,67 +331,6 @@
           }
         </g>
       }
-
-      @if (state.mode() === 'edit' || state.mode() === 'view') {
-        <g data-interaction-guides="true">
-          @for (element of visibleShapeElements(layer.elements); track element.id) {
-            @for (interaction of element.interactions ?? []; track interaction.id) {
-              @if (interaction.visible) {
-                @switch (interaction.type) {
-                  @case ('rotation') {
-                    <line
-                      class="interaction-guide"
-                      [attr.x1]="elementCenter(element).x"
-                      [attr.y1]="elementCenter(element).y"
-                      [attr.x2]="interactionPointToWorld(element, interaction, 'pivot').x"
-                      [attr.y2]="interactionPointToWorld(element, interaction, 'pivot').y"
-                    />
-                    <circle
-                      class="interaction-point"
-                      [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interactionPointToWorld(element, interaction, 'pivot').x"
-                      [attr.cy]="interactionPointToWorld(element, interaction, 'pivot').y"
-                      r="1.8"
-                      (pointerdown)="
-                        onInteractionPointPointerDown($event, element, interaction, 'pivot')
-                      "
-                    />
-                  }
-                  @case ('slide') {
-                    <line
-                      class="interaction-guide"
-                      [attr.x1]="interactionPointToWorld(element, interaction, 'start').x"
-                      [attr.y1]="interactionPointToWorld(element, interaction, 'start').y"
-                      [attr.x2]="interactionPointToWorld(element, interaction, 'end').x"
-                      [attr.y2]="interactionPointToWorld(element, interaction, 'end').y"
-                    />
-                    <circle
-                      class="interaction-point"
-                      [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interactionPointToWorld(element, interaction, 'start').x"
-                      [attr.cy]="interactionPointToWorld(element, interaction, 'start').y"
-                      r="1.2"
-                      (pointerdown)="
-                        onInteractionPointPointerDown($event, element, interaction, 'start')
-                      "
-                    />
-                    <circle
-                      class="interaction-point"
-                      [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interactionPointToWorld(element, interaction, 'end').x"
-                      [attr.cy]="interactionPointToWorld(element, interaction, 'end').y"
-                      r="1.2"
-                      (pointerdown)="
-                        onInteractionPointPointerDown($event, element, interaction, 'end')
-                      "
-                    />
-                  }
-                }
-              }
-            }
-          }
-        </g>
-      }
     }
 
     @if (state.mode() === 'edit') {
@@ -411,10 +350,10 @@
                   @for (handle of resizeHandles; track handle) {
                     <rect
                       class="resize-handle"
-                      width="4"
-                      height="4"
-                      [attr.x]="resizeHandleX(element, handle) - 2"
-                      [attr.y]="resizeHandleY(element, handle) - 2"
+                      width="2.8"
+                      height="2.8"
+                      [attr.x]="resizeHandleX(element, handle) - 1.4"
+                      [attr.y]="resizeHandleY(element, handle) - 1.4"
                       [style.cursor]="resizeCursor(handle)"
                       (pointerdown)="onRectangleResizePointerDown($event, element, handle)"
                     />
@@ -425,8 +364,71 @@
                 class="selection-anchor"
                 [attr.cx]="element.x"
                 [attr.cy]="element.y"
-                r="2.2"
+                r="1.45"
               />
+            }
+          }
+        }
+      </g>
+    }
+
+    @if (state.mode() === 'edit' || state.mode() === 'view') {
+      <g data-interaction-guides="true">
+        @for (layer of state.visibleLayers(); track layer.id) {
+          @for (element of visibleShapeElements(layer.elements); track element.id) {
+            @for (interaction of element.interactions ?? []; track interaction.id) {
+              @if (interaction.visible) {
+                @switch (interaction.type) {
+                  @case ('rotation') {
+                    <line
+                      class="interaction-guide"
+                      [attr.x1]="elementCenter(element).x"
+                      [attr.y1]="elementCenter(element).y"
+                      [attr.x2]="interactionPointToWorld(element, interaction, 'pivot').x"
+                      [attr.y2]="interactionPointToWorld(element, interaction, 'pivot').y"
+                    />
+                    <circle
+                      class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'pivot').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'pivot').y"
+                      r="1.6"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'pivot')
+                      "
+                    />
+                  }
+                  @case ('slide') {
+                    <line
+                      class="interaction-guide"
+                      [attr.x1]="interactionPointToWorld(element, interaction, 'start').x"
+                      [attr.y1]="interactionPointToWorld(element, interaction, 'start').y"
+                      [attr.x2]="interactionPointToWorld(element, interaction, 'end').x"
+                      [attr.y2]="interactionPointToWorld(element, interaction, 'end').y"
+                    />
+                    <circle
+                      class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'start').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'start').y"
+                      r="1.35"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'start')
+                      "
+                    />
+                    <circle
+                      class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'end').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'end').y"
+                      r="1.35"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'end')
+                      "
+                    />
+                  }
+                }
+              }
             }
           }
         }
