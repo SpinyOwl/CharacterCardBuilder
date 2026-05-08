@@ -313,6 +313,10 @@
                     cx="0"
                     cy="0"
                     [attr.r]="element.radius"
+                    [style.stroke]="isSelected(element) ? appSettings.selectionOutlineColor() : null"
+                    [style.stroke-width]="
+                      isSelected(element) ? appSettings.selectionOutlineThickness() : null
+                    "
                     [attr.transform]="renderTransform(element)"
                     (pointerdown)="onElementPointerDown($event, element, layer)"
                   />
@@ -322,6 +326,10 @@
                     class="subtractive-outline"
                     [class.selected-outline]="isSelected(element)"
                     [attr.d]="elementPath(element)"
+                    [style.stroke]="isSelected(element) ? appSettings.selectionOutlineColor() : null"
+                    [style.stroke-width]="
+                      isSelected(element) ? appSettings.selectionOutlineThickness() : null
+                    "
                     [attr.transform]="renderTransform(element)"
                     (pointerdown)="onElementPointerDown($event, element, layer)"
                   />
@@ -345,6 +353,8 @@
                   y="0"
                   [attr.width]="selectionBox(element).width"
                   [attr.height]="selectionBox(element).height"
+                  [style.stroke]="appSettings.selectionOutlineColor()"
+                  [style.stroke-width]="appSettings.selectionOutlineThickness()"
                 />
               </g>
               @if (isRectangle(element)) {
@@ -355,14 +365,18 @@
                     y="0"
                     [attr.width]="element.width"
                     [attr.height]="element.height"
+                    [style.stroke]="appSettings.selectionOutlineColor()"
+                    [style.stroke-width]="appSettings.selectionOutlineThickness()"
                   />
                   @for (handle of resizeHandles; track handle) {
                     <rect
                       class="resize-handle"
-                      width="2.8"
-                      height="2.8"
-                      [attr.x]="resizeHandleX(element, handle) - 1.4"
-                      [attr.y]="resizeHandleY(element, handle) - 1.4"
+                      [attr.width]="appSettings.selectionHandleSize()"
+                      [attr.height]="appSettings.selectionHandleSize()"
+                      [attr.x]="resizeHandleX(element, handle) - resizeHandleOffset()"
+                      [attr.y]="resizeHandleY(element, handle) - resizeHandleOffset()"
+                      [style.stroke]="appSettings.selectionOutlineColor()"
+                      [style.stroke-width]="appSettings.selectionOutlineThickness()"
                       [style.cursor]="resizeCursor(handle)"
                       (pointerdown)="onRectangleResizePointerDown($event, element, handle)"
                     />

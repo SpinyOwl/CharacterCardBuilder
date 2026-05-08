@@ -465,6 +465,12 @@ li[aria-expanded='false'] + ul[role='group'] {
   border: 0;
 }
 
+.settings-group {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
 .page-setup-dialog input,
 .page-setup-dialog select {
   min-height: 40px;

@@ -16,6 +16,7 @@ import {
   isShapeElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
+import { AppSettingsService } from '../services/app-settings.service';
 import { ProjectStateService } from '../services/project-state.service';
 import { createGearPath } from '../utils/gear.utils';
 import { createPolygonPath, createTrianglePath, roundedRectPath } from '../utils/geometry.utils';
@@ -70,6 +71,7 @@ export class CanvasStageComponent {
   readonly projectChanged = output<void>();
 
   readonly state = inject(ProjectStateService);
+  readonly appSettings = inject(AppSettingsService);
   readonly resizeHandles: ResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   readonly math = Math;
 
@@ -582,6 +584,10 @@ export class CanvasStageComponent {
 
   resizeCursor(handle: ResizeHandle): string {
     return `${handle}-resize`;
+  }
+
+  resizeHandleOffset(): number {
+    return this.appSettings.selectionHandleSize() / 2;
   }
 
   private resizeRectangleFromPointer(

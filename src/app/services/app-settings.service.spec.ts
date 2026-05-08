@@ -10,6 +10,9 @@ describe('AppSettingsService', () => {
     const settings = new AppSettingsService();
 
     expect(settings.theme()).toBe('light');
+    expect(settings.selectionOutlineColor()).toBe('#d21f3c');
+    expect(settings.selectionOutlineThickness()).toBe(0.8);
+    expect(settings.selectionHandleSize()).toBe(2.8);
   });
 
   it('persists the selected theme between service instances', () => {
@@ -26,5 +29,35 @@ describe('AppSettingsService', () => {
     const settings = new AppSettingsService();
 
     expect(settings.theme()).toBe('light');
+  });
+
+  it('persists selection appearance settings between service instances', () => {
+    const settings = new AppSettingsService();
+
+    settings.updateSelectionOutlineColor('#00ff88');
+    settings.updateSelectionOutlineThickness(1.4);
+    settings.updateSelectionHandleSize(4);
+
+    const reloadedSettings = new AppSettingsService();
+    expect(reloadedSettings.selectionOutlineColor()).toBe('#00ff88');
+    expect(reloadedSettings.selectionOutlineThickness()).toBe(1.4);
+    expect(reloadedSettings.selectionHandleSize()).toBe(4);
+  });
+
+  it('falls back to defaults for invalid selection appearance settings', () => {
+    localStorage.setItem(
+      'character-card-builder:app-settings',
+      JSON.stringify({
+        selectionOutlineColor: 'red',
+        selectionOutlineThickness: -1,
+        selectionHandleSize: Number.NaN,
+      }),
+    );
+
+    const settings = new AppSettingsService();
+
+    expect(settings.selectionOutlineColor()).toBe('#d21f3c');
+    expect(settings.selectionOutlineThickness()).toBe(0.8);
+    expect(settings.selectionHandleSize()).toBe(2.8);
   });
 });

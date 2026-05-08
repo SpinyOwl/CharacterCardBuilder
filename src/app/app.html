@@ -958,6 +958,39 @@
           </select>
         </label>
 
+        <fieldset class="settings-group">
+          <legend>Selection outline</legend>
+          <div class="field-grid">
+            <label>
+              Color
+              <input
+                type="color"
+                [ngModel]="appSettings.selectionOutlineColor()"
+                (ngModelChange)="updateSelectionOutlineColor($event)"
+              />
+            </label>
+            <label>
+              Thickness
+              <input
+                type="number"
+                min="0.1"
+                step="0.1"
+                [ngModel]="appSettings.selectionOutlineThickness()"
+                (ngModelChange)="updateSelectionOutlineNumber('selectionOutlineThickness', $event)"
+              />
+            </label>
+            <label>
+              Handles size
+              <input
+                type="number"
+                min="0.5"
+                step="0.1"
+                [ngModel]="appSettings.selectionHandleSize()"
+                (ngModelChange)="updateSelectionOutlineNumber('selectionHandleSize', $event)"
+              />
+            </label>
+          </div>
+        </fieldset>
         <footer class="dialog-actions">
           <button type="button" class="primary-button" (click)="closeSettings()">Done</button>
         </footer>

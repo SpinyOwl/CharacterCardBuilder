@@ -233,6 +233,26 @@ export class App {
     this.appSettings.updateTheme(theme);
   }
 
+  updateSelectionOutlineColor(color: string): void {
+    this.appSettings.updateSelectionOutlineColor(color);
+  }
+
+  updateSelectionOutlineNumber(
+    setting: 'selectionOutlineThickness' | 'selectionHandleSize',
+    rawValue: string | number,
+  ): void {
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+
+    if (setting === 'selectionOutlineThickness') {
+      this.appSettings.updateSelectionOutlineThickness(value);
+      return;
+    }
+
+    this.appSettings.updateSelectionHandleSize(value);
+  }
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {
     this.pageSetupDraft.update((draft) => ({ ...draft, [property]: value }));
   }
