@@ -157,6 +157,15 @@
         </button>
         <label class="toolbar-number-field" title="Grid size in millimeters">
           <span>mm</span>
+          <button
+            type="button"
+            class="toolbar-icon-button"
+            title="Decrease grid size"
+            aria-label="Decrease grid size"
+            (click)="adjustGridSize(-0.5)"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">remove</span>
+          </button>
           <input
             type="number"
             min="0.5"
@@ -165,6 +174,15 @@
             (ngModelChange)="updateGridSize($event)"
             aria-label="Grid size in millimeters"
           />
+          <button
+            type="button"
+            class="toolbar-icon-button"
+            title="Increase grid size"
+            aria-label="Increase grid size"
+            (click)="adjustGridSize(0.5)"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          </button>
         </label>
       </div>
       <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">

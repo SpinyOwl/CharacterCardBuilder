@@ -296,6 +296,10 @@ export class App {
     }
   }
 
+  adjustGridSize(delta: number): void {
+    this.appSettings.updateGridSize(this.appSettings.gridSize() + delta);
+  }
+
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {
     this.pageSetupDraft.update((draft) => ({ ...draft, [property]: value }));
   }
