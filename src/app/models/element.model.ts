@@ -32,6 +32,29 @@ export interface ShapeStyle {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
+  interactions?: ShapeInteraction[];
+}
+
+export type ShapeInteraction = RotationInteraction | SlideInteraction;
+
+export interface BaseInteraction {
+  id: string;
+  name: string;
+  visible: boolean;
+}
+
+export interface RotationInteraction extends BaseInteraction {
+  type: 'rotation';
+  pivotX: number;
+  pivotY: number;
+}
+
+export interface SlideInteraction extends BaseInteraction {
+  type: 'slide';
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
 }
 
 export interface RectangleElement extends BaseElement, ShapeStyle {

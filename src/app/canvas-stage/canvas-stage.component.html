@@ -174,11 +174,10 @@
                 [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
                 [attr.transform]="renderTransform(element)"
                 (pointerdown)="
-                  state.mode() === 'view' && isGear(element)
-                    ? onGearViewPointerDown($event, element)
+                  state.mode() === 'view'
+                    ? onViewElementPointerDown($event, element)
                     : onElementPointerDown($event, element, layer)
                 "
-                (wheel)="onGearWheel($event, element)"
               >
                 @switch (element.type) {
                   @case ('rectangle') {
@@ -326,6 +325,55 @@
                     [attr.transform]="renderTransform(element)"
                     (pointerdown)="onElementPointerDown($event, element, layer)"
                   />
+                }
+              }
+            }
+          }
+        </g>
+      }
+
+      @if (state.mode() === 'edit' || state.mode() === 'view') {
+        <g data-interaction-guides="true">
+          @for (element of visibleShapeElements(layer.elements); track element.id) {
+            @for (interaction of element.interactions ?? []; track interaction.id) {
+              @if (interaction.visible) {
+                @switch (interaction.type) {
+                  @case ('rotation') {
+                    <line
+                      class="interaction-guide"
+                      [attr.x1]="elementCenter(element).x"
+                      [attr.y1]="elementCenter(element).y"
+                      [attr.x2]="interaction.pivotX"
+                      [attr.y2]="interaction.pivotY"
+                    />
+                    <circle
+                      class="interaction-point"
+                      [attr.cx]="interaction.pivotX"
+                      [attr.cy]="interaction.pivotY"
+                      r="1.8"
+                    />
+                  }
+                  @case ('slide') {
+                    <line
+                      class="interaction-guide"
+                      [attr.x1]="interaction.startX"
+                      [attr.y1]="interaction.startY"
+                      [attr.x2]="interaction.endX"
+                      [attr.y2]="interaction.endY"
+                    />
+                    <circle
+                      class="interaction-point"
+                      [attr.cx]="interaction.startX"
+                      [attr.cy]="interaction.startY"
+                      r="1.2"
+                    />
+                    <circle
+                      class="interaction-point"
+                      [attr.cx]="interaction.endX"
+                      [attr.cy]="interaction.endY"
+                      r="1.2"
+                    />
+                  }
                 }
               }
             }

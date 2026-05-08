@@ -27,6 +27,42 @@ describe('ProjectStateService', () => {
     expect(updated?.type === 'gear' ? updated.currentRotation : undefined).toBe(45);
   });
 
+  it('rotates a shape around a configured interaction pivot in view mode', () => {
+    const state = new ProjectStateService();
+
+    state.setMode('view');
+    state.rotateElementAroundPivotInViewMode('gear-main', 'gear-rotation', 90);
+
+    const updated = state.findElement('gear-main')?.element;
+    expect(updated?.rotation).toBe(90);
+    expect(updated?.x).toBe(135);
+    expect(updated?.y).toBe(56);
+  });
+
+  it('slides a shape along a configured axis in view mode', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('card-body', {
+      interactions: [
+        {
+          id: 'card-slide',
+          type: 'slide',
+          name: 'Slide axis',
+          visible: true,
+          startX: 0,
+          startY: 0,
+          endX: 10,
+          endY: 0,
+        },
+      ],
+    });
+    state.setMode('view');
+    state.slideElementAlongAxisInViewMode('card-body', 'card-slide', 7, 5);
+
+    const updated = state.findElement('card-body')?.element;
+    expect(updated).toMatchObject({ x: 52, y: 34 });
+  });
+
   it('hidden layers are not selectable', () => {
     const project = createDefaultProject();
     project.layers[0] = { ...project.layers[0], visible: false };

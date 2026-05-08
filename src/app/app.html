@@ -176,13 +176,19 @@
               [class.layer-row]="node.kind === 'layer'"
               [class.element-row]="node.kind === 'element'"
               [class.muted-row]="
-                node.kind === 'layer' ? !node.layer.visible : !node.element.visible
+                node.kind === 'layer'
+                  ? !node.layer.visible
+                  : node.kind === 'element'
+                    ? !node.element.visible
+                    : !node.interaction.visible
               "
               [class.locked-row]="node.kind === 'element' && node.element.locked"
               (click)="
                 node.kind === 'layer'
                   ? state.selectLayer(node.layer.id)
-                  : state.selectElement(node.element.id)
+                  : node.kind === 'element'
+                    ? state.selectElement(node.element.id)
+                    : state.selectElement(node.owner.id)
               "
             >
               <span
@@ -193,8 +199,20 @@
               <span
                 aria-hidden="true"
                 class="tree-icon material-symbols-outlined element-type-icon"
-                [title]="node.kind === 'layer' ? 'Layer' : node.element.type"
-                >{{ node.kind === 'layer' ? 'layers' : elementTypeIcon(node.element.type) }}</span
+                [title]="
+                  node.kind === 'layer'
+                    ? 'Layer'
+                    : node.kind === 'element'
+                      ? node.element.type
+                      : node.interaction.type
+                "
+                >{{
+                  node.kind === 'layer'
+                    ? 'layers'
+                    : node.kind === 'element'
+                      ? elementTypeIcon(node.element.type)
+                      : interactionTypeIcon(node.interaction.type)
+                }}</span
               >
               <span class="tree-name">{{ node.name }}</span>
 
@@ -229,7 +247,7 @@
                     }}</span>
                   </button>
                 </div>
-              } @else {
+              } @else if (node.kind === 'element') {
                 <div class="tree-controls">
                   <button
                     type="button"
@@ -270,6 +288,40 @@
                       node.element.locked ? 'Unlock element to delete' : 'Delete element'
                     "
                     (click)="$event.stopPropagation(); deleteElement(node.element)"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  </button>
+                </div>
+              } @else {
+                <div class="tree-controls">
+                  <button
+                    type="button"
+                    class="tree-icon-button"
+                    [class.inactive]="!node.interaction.visible"
+                    [title]="node.interaction.visible ? 'Hide interaction' : 'Show interaction'"
+                    [attr.aria-label]="
+                      node.interaction.visible ? 'Hide interaction' : 'Show interaction'
+                    "
+                    (click)="
+                      $event.stopPropagation();
+                      updateInteractionVisible(node.owner, node.interaction, !node.interaction.visible)
+                    "
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      node.interaction.visible ? 'visibility' : 'visibility_off'
+                    }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button danger-button"
+                    [disabled]="node.owner.locked"
+                    [title]="node.owner.locked ? 'Unlock shape to delete' : 'Delete interaction'"
+                    [attr.aria-label]="
+                      node.owner.locked ? 'Unlock shape to delete' : 'Delete interaction'
+                    "
+                    (click)="
+                      $event.stopPropagation(); deleteInteraction(node.owner, node.interaction)
+                    "
                   >
                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                   </button>
@@ -386,6 +438,118 @@
                   (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
                 />
               </label>
+            </fieldset>
+            <fieldset class="inspector-group">
+              <legend>Interactions</legend>
+              <div class="button-row">
+                <button type="button" (click)="addRotationInteraction(selected)">
+                  Add rotation point
+                </button>
+                <button type="button" (click)="addSlideInteraction(selected)">Add slide axis</button>
+              </div>
+              @if ((selected.interactions?.length ?? 0) > 0) {
+                @for (interaction of selected.interactions ?? []; track interaction.id) {
+                  <fieldset class="inspector-group nested-inspector-group">
+                    <legend>{{ interaction.name }}</legend>
+                    <label>
+                      Name
+                      <input
+                        [ngModel]="interaction.name"
+                        (ngModelChange)="
+                          updateInteractionString(selected, interaction.id, 'name', $event)
+                        "
+                      />
+                    </label>
+                    <label class="checkbox-row compact-checkbox-row">
+                      <input
+                        type="checkbox"
+                        [ngModel]="interaction.visible"
+                        (ngModelChange)="updateInteractionVisible(selected, interaction, $event)"
+                      />
+                      Show guide
+                    </label>
+                    @switch (interaction.type) {
+                      @case ('rotation') {
+                        <div class="field-grid">
+                          <label>
+                            Pivot X
+                            <input
+                              type="number"
+                              [ngModel]="interaction.pivotX"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'pivotX', $event)
+                              "
+                            />
+                          </label>
+                          <label>
+                            Pivot Y
+                            <input
+                              type="number"
+                              [ngModel]="interaction.pivotY"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'pivotY', $event)
+                              "
+                            />
+                          </label>
+                        </div>
+                      }
+                      @case ('slide') {
+                        <div class="field-grid">
+                          <label>
+                            Start X
+                            <input
+                              type="number"
+                              [ngModel]="interaction.startX"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'startX', $event)
+                              "
+                            />
+                          </label>
+                          <label>
+                            Start Y
+                            <input
+                              type="number"
+                              [ngModel]="interaction.startY"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'startY', $event)
+                              "
+                            />
+                          </label>
+                          <label>
+                            End X
+                            <input
+                              type="number"
+                              [ngModel]="interaction.endX"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'endX', $event)
+                              "
+                            />
+                          </label>
+                          <label>
+                            End Y
+                            <input
+                              type="number"
+                              [ngModel]="interaction.endY"
+                              (ngModelChange)="
+                                updateInteractionNumber(selected, interaction.id, 'endY', $event)
+                              "
+                            />
+                          </label>
+                        </div>
+                      }
+                    }
+                    <button
+                      type="button"
+                      class="danger-button"
+                      (click)="deleteInteraction(selected, interaction)"
+                    >
+                      Delete interaction
+                    </button>
+                  </fieldset>
+                }
+              } @else {
+                <p class="muted">No interactions.</p>
+              }
             </fieldset>
           }
 

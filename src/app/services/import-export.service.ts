@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { parse, stringify } from 'yaml';
-import { DesignElement, GearLabel } from '../models/element.model';
+import { DesignElement, GearLabel, ShapeInteraction } from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { PageOrientation, PageSetup, PaperSize, Project } from '../models/project.model';
 
@@ -222,6 +222,7 @@ function assertShapeStyle(value: Record<string, unknown>): {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
+  interactions: ShapeInteraction[];
 } {
   return {
     fill: requiredString(value['fill'], 'Shape fill'),
@@ -231,7 +232,44 @@ function assertShapeStyle(value: Record<string, unknown>): {
       typeof value['backgroundImage'] === 'string' && value['backgroundImage'].trim()
         ? value['backgroundImage']
         : undefined,
+    interactions: Array.isArray(value['interactions'])
+      ? value['interactions'].map(assertShapeInteraction)
+      : [],
   };
+}
+
+function assertShapeInteraction(value: unknown): ShapeInteraction {
+  if (!isRecord(value)) {
+    throw new Error('Shape interaction must be an object.');
+  }
+
+  const base = {
+    id: requiredString(value['id'], 'Interaction id'),
+    name: requiredString(value['name'], 'Interaction name'),
+    visible: value['visible'] !== false,
+  };
+
+  if (value['type'] === 'rotation') {
+    return {
+      ...base,
+      type: 'rotation',
+      pivotX: requiredNumber(value['pivotX'], 'Rotation pivotX'),
+      pivotY: requiredNumber(value['pivotY'], 'Rotation pivotY'),
+    };
+  }
+
+  if (value['type'] === 'slide') {
+    return {
+      ...base,
+      type: 'slide',
+      startX: requiredNumber(value['startX'], 'Slide startX'),
+      startY: requiredNumber(value['startY'], 'Slide startY'),
+      endX: requiredNumber(value['endX'], 'Slide endX'),
+      endY: requiredNumber(value['endY'], 'Slide endY'),
+    };
+  }
+
+  throw new Error(`Unsupported interaction type: ${String(value['type'])}`);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

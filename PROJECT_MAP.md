@@ -8,7 +8,7 @@ CharacterCardBuilder is a standalone Angular 21 application for building layered
 - `src/app/app.ts` is the application shell and inspector controller. It owns menubar actions, toolbar actions, project tree projection, page setup, import/export dialog state, and selection inspector update methods.
 - `src/app/app.html` renders the full editor UI: menubar, toolbar, layer/tree side panel, canvas stage, inspector panel, import/export dialog, and page setup dialog.
 - `src/app/app.css` contains shell, panel, tree, inspector, dialog, and control styling.
-- `src/app/canvas-stage/` contains the SVG canvas component. It renders layers/elements, handles pointer interaction on the stage, edit-mode helpers, rectangle resizing, gear rotation in view mode, subtractive cutouts, and cutout stroke rendering.
+- `src/app/canvas-stage/` contains the SVG canvas component. It renders layers/elements, handles pointer interaction on the stage, edit-mode helpers, rectangle resizing, view-mode shape interactions, subtractive cutouts, and cutout stroke rendering.
 
 ## Data Model
 
@@ -21,6 +21,7 @@ CharacterCardBuilder is a standalone Angular 21 application for building layered
   - Shared element fields: id, layerId, type, name, position, rotation, visibility, lock state, additive/subtractive mode.
   - Shape style fields: fill, stroke, strokeWidth, optional backgroundImage.
   - Gear-specific fields: tooth geometry, runtime rotation, editable center dot, editable labels.
+  - Shape interaction fields: rotation points and slide axes attached to shape elements.
 - `src/app/models/default-project.ts`
   - Initial sample project with a bottom rotating gear layer and top card layer with subtractive window.
 
@@ -46,6 +47,7 @@ CharacterCardBuilder is a standalone Angular 21 application for building layered
 - Cutout strokes are clipped to the additive batch they affect, so the stroke only appears where additive and subtractive geometry touch.
 - Edit-mode subtractive helper outlines are separate from exported/rendered cutout strokes.
 - Gears render as a single gear path plus an editable center dot and editable labels. The former large internal circle is intentionally not rendered.
+- Shape interactions draw dashed guides in edit and view mode. Rotation uses a pivot point; sliding uses an axis.
 
 ## UI Features
 
@@ -69,6 +71,7 @@ CharacterCardBuilder is a standalone Angular 21 application for building layered
   - Rectangle fields: width, height, radius.
   - Gear fields: disc/tooth/teeth/runtime rotation, center dot styling, per-label editing.
   - Text fields: text, color, size, weight, align, font family.
+  - Shape interaction fields: add/edit/delete rotation points and slide axes.
 
 ## Utilities
 

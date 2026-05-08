@@ -7,6 +7,9 @@ import {
   GroupElement,
   Point,
   RectangleElement,
+  RotationInteraction,
+  ShapeElement,
+  ShapeInteraction,
   isGearElement,
   isGroupElement,
   isRectangleElement,
@@ -22,6 +25,8 @@ type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type DragState =
   | { kind: 'move'; elementId: string; last: { x: number; y: number } }
   | { kind: 'rotate'; elementId: string; lastAngle: number }
+  | { kind: 'rotate-interaction'; elementId: string; interactionId: string; lastAngle: number }
+  | { kind: 'slide-interaction'; elementId: string; interactionId: string; last: Point }
   | {
       kind: 'resize-rectangle';
       elementId: string;
@@ -115,27 +120,36 @@ export class CanvasStageComponent {
     };
   }
 
-  onGearViewPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
+  onViewElementPointerDown(event: PointerEvent, element: DesignElement): void {
+    if (this.state.mode() !== 'view' || !isShapeElement(element)) {
+      return;
+    }
+
+    const interaction = (element.interactions ?? []).find((candidate) => candidate.visible);
+    if (!interaction) {
       return;
     }
 
     event.stopPropagation();
-    this.dragState = {
-      kind: 'rotate',
-      elementId: element.id,
-      lastAngle: this.pointerAngle(event, element),
-    };
-  }
-
-  onGearWheel(event: WheelEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
+    if (interaction.type === 'rotation') {
+      this.dragState = {
+        kind: 'rotate-interaction',
+        elementId: element.id,
+        interactionId: interaction.id,
+        lastAngle: this.pointerAngleFromPoint(event, {
+          x: interaction.pivotX,
+          y: interaction.pivotY,
+        }),
+      };
       return;
     }
 
-    event.preventDefault();
-    this.state.rotateGearInViewMode(element.id, event.deltaY > 0 ? 6 : -6);
-    this.projectChanged.emit();
+    this.dragState = {
+      kind: 'slide-interaction',
+      elementId: element.id,
+      interactionId: interaction.id,
+      last: this.pointerToSvgPoint(event),
+    };
   }
 
   onSvgPointerMove(event: PointerEvent): void {
@@ -161,15 +175,57 @@ export class CanvasStageComponent {
       return;
     }
 
-    const found = this.state.findElement(this.dragState.elementId);
-    if (!found || !isGearElement(found.element)) {
+    if (this.dragState.kind === 'rotate-interaction') {
+      const dragState = this.dragState;
+      const found = this.state.findElement(this.dragState.elementId);
+      if (!found || !isShapeElement(found.element)) {
+        return;
+      }
+      const interaction = (found.element.interactions ?? []).find(
+        (candidate): candidate is RotationInteraction =>
+          candidate.id === dragState.interactionId && candidate.type === 'rotation',
+      );
+      if (!interaction) {
+        return;
+      }
+      const angle = this.pointerAngleFromPoint(event, {
+        x: interaction.pivotX,
+        y: interaction.pivotY,
+      });
+      this.state.rotateElementAroundPivotInViewMode(
+        this.dragState.elementId,
+        this.dragState.interactionId,
+        angle - this.dragState.lastAngle,
+      );
+      this.dragState = { ...this.dragState, lastAngle: angle };
+      this.projectChanged.emit();
       return;
     }
 
-    const angle = this.pointerAngle(event, found.element);
-    this.state.rotateGearInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
-    this.dragState = { ...this.dragState, lastAngle: angle };
-    this.projectChanged.emit();
+    if (this.dragState.kind === 'slide-interaction') {
+      const point = this.pointerToSvgPoint(event);
+      this.state.slideElementAlongAxisInViewMode(
+        this.dragState.elementId,
+        this.dragState.interactionId,
+        point.x - this.dragState.last.x,
+        point.y - this.dragState.last.y,
+      );
+      this.dragState = { ...this.dragState, last: point };
+      this.projectChanged.emit();
+      return;
+    }
+
+    if (this.dragState.kind === 'rotate') {
+      const found = this.state.findElement(this.dragState.elementId);
+      if (!found || !isGearElement(found.element)) {
+        return;
+      }
+
+      const angle = this.pointerAngle(event, found.element);
+      this.state.rotateGearInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
+      this.dragState = { ...this.dragState, lastAngle: angle };
+      this.projectChanged.emit();
+    }
   }
 
   onSvgPointerUp(): void {
@@ -258,6 +314,29 @@ export class CanvasStageComponent {
       : this.elementTransform(element, true);
   }
 
+  elementCenter(element: DesignElement): Point {
+    switch (element.type) {
+      case 'rectangle':
+      case 'triangle':
+        return { x: element.x + element.width / 2, y: element.y + element.height / 2 };
+      case 'circle':
+      case 'gear':
+      case 'text':
+      case 'group':
+        return { x: element.x, y: element.y };
+      case 'polygon': {
+        if (element.points.length === 0) {
+          return { x: element.x, y: element.y };
+        }
+        const minX = Math.min(...element.points.map((point) => point.x));
+        const maxX = Math.max(...element.points.map((point) => point.x));
+        const minY = Math.min(...element.points.map((point) => point.y));
+        const maxY = Math.max(...element.points.map((point) => point.y));
+        return { x: element.x + (minX + maxX) / 2, y: element.y + (minY + maxY) / 2 };
+      }
+    }
+  }
+
   labelTransform(gear: GearElement, label: GearLabel): string {
     const x = Math.cos((label.angle * Math.PI) / 180) * (gear.discRadius - label.offsetFromEdge);
     const y = Math.sin((label.angle * Math.PI) / 180) * (gear.discRadius - label.offsetFromEdge);
@@ -291,6 +370,19 @@ export class CanvasStageComponent {
 
   isRectangle(element: DesignElement): element is RectangleElement {
     return isRectangleElement(element);
+  }
+
+  isShape(element: DesignElement): element is ShapeElement {
+    return isShapeElement(element);
+  }
+
+  visibleShapeElements(elements: DesignElement[]): ShapeElement[] {
+    return this.allElements(elements).filter(
+      (element): element is ShapeElement =>
+        isShapeElement(element) &&
+        element.visible &&
+        (element.interactions ?? []).some((interaction) => interaction.visible),
+    );
   }
 
   allElements(elements: DesignElement[]): DesignElement[] {
@@ -425,6 +517,11 @@ export class CanvasStageComponent {
   private pointerAngle(event: PointerEvent, element: DesignElement): number {
     const point = this.pointerToSvgPoint(event);
     return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
+  }
+
+  private pointerAngleFromPoint(event: PointerEvent, point: Point): number {
+    const pointer = this.pointerToSvgPoint(event);
+    return (Math.atan2(pointer.y - point.y, pointer.x - point.x) * 180) / Math.PI;
   }
 
   private findSubtractiveElementAtPointer(

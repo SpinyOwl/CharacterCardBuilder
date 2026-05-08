@@ -1,5 +1,6 @@
 :host {
   display: block;
+  height: 100vh;
   min-height: 100vh;
   color: #1f2522;
   font-family:
@@ -13,7 +14,11 @@
 }
 
 .app-shell {
-  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background: #e8ebe6;
 }
 
@@ -113,11 +118,13 @@ button.active {
   display: grid;
   grid-template-columns: minmax(260px, 320px) minmax(360px, 1fr) minmax(260px, 320px);
   gap: 12px;
+  min-height: 0;
+  overflow: hidden;
   padding: 12px;
 }
 
 .panel {
-  min-height: calc(100vh - 78px);
+  min-height: 0;
   border: 1px solid #c4cbc0;
   background: #fbfcf8;
 }
@@ -479,9 +486,23 @@ li[aria-expanded='false'] + ul[role='group'] {
 }
 
 @media (max-width: 980px) {
+  :host {
+    height: auto;
+  }
+
+  .app-shell {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .topbar,
   .workspace {
     grid-template-columns: 1fr;
+  }
+
+  .workspace {
+    overflow: visible;
   }
 
   .panel {

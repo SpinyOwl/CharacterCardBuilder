@@ -10,6 +10,7 @@ import {
   DesignElementType,
   GearElement,
   GearLabel,
+  ShapeInteraction,
   ShapeElement,
   isGroupElement,
   isGearElement,
@@ -54,6 +55,14 @@ type ProjectTreeNode =
       value: string;
       element: DesignElement;
       expanded?: boolean;
+      children: ProjectTreeNode[];
+    }
+  | {
+      kind: 'interaction';
+      name: string;
+      value: string;
+      owner: ShapeElement;
+      interaction: ShapeInteraction;
       children: ProjectTreeNode[];
     };
 
@@ -297,6 +306,12 @@ export class App {
 
     if (value.startsWith('element:')) {
       this.state.selectElement(value.slice('element:'.length));
+      return;
+    }
+
+    if (value.startsWith('interaction:')) {
+      const [, elementId] = value.split(':');
+      this.state.selectElement(elementId);
     }
   }
 
@@ -329,12 +344,63 @@ export class App {
     this.refreshYaml();
   }
 
+  addRotationInteraction(element: ShapeElement): void {
+    const interaction: ShapeInteraction = {
+      id: `rotation-${crypto.randomUUID().slice(0, 8)}`,
+      type: 'rotation',
+      name: 'Rotation point',
+      visible: true,
+      pivotX: element.x,
+      pivotY: element.y,
+    };
+    this.state.updateElement(element.id, {
+      interactions: [...(element.interactions ?? []), interaction],
+    } as Partial<DesignElement>);
+    this.refreshYaml();
+  }
+
+  addSlideInteraction(element: ShapeElement): void {
+    const interaction: ShapeInteraction = {
+      id: `slide-${crypto.randomUUID().slice(0, 8)}`,
+      type: 'slide',
+      name: 'Slide axis',
+      visible: true,
+      startX: element.x - 20,
+      startY: element.y,
+      endX: element.x + 20,
+      endY: element.y,
+    };
+    this.state.updateElement(element.id, {
+      interactions: [...(element.interactions ?? []), interaction],
+    } as Partial<DesignElement>);
+    this.refreshYaml();
+  }
+
+  updateInteractionVisible(
+    element: ShapeElement,
+    interaction: ShapeInteraction,
+    visible: boolean,
+  ): void {
+    this.patchInteraction(element, interaction.id, { visible });
+  }
+
+  deleteInteraction(element: ShapeElement, interaction: ShapeInteraction): void {
+    this.state.updateElement(element.id, {
+      interactions: (element.interactions ?? []).filter((candidate) => candidate.id !== interaction.id),
+    } as Partial<DesignElement>);
+    this.refreshYaml();
+  }
+
   layerTreeValue(layerId: string): string {
     return `layer:${layerId}`;
   }
 
   elementTreeValue(elementId: string): string {
     return `element:${elementId}`;
+  }
+
+  interactionTreeValue(elementId: string, interactionId: string): string {
+    return `interaction:${elementId}:${interactionId}`;
   }
 
   elementTypeIcon(type: DesignElementType): string {
@@ -356,6 +422,10 @@ export class App {
     }
   }
 
+  interactionTypeIcon(type: ShapeInteraction['type']): string {
+    return type === 'rotation' ? 'sync' : 'linear_scale';
+  }
+
   addLayer(): void {
     this.state.addLayer();
     this.refreshYaml();
@@ -367,6 +437,17 @@ export class App {
   }
 
   private elementTreeNode(element: DesignElement): ProjectTreeNode {
+    const interactionNodes = isShapeElement(element)
+      ? (element.interactions ?? []).map((interaction) => ({
+          kind: 'interaction' as const,
+          name: interaction.name,
+          value: this.interactionTreeValue(element.id, interaction.id),
+          owner: element,
+          interaction,
+          children: [],
+        }))
+      : [];
+
     return {
       kind: 'element',
       name: element.name,
@@ -375,7 +456,7 @@ export class App {
       expanded: true,
       children: isGroupElement(element)
         ? element.elements.map((child) => this.elementTreeNode(child))
-        : [],
+        : interactionNodes,
     };
   }
 
@@ -489,6 +570,27 @@ export class App {
     this.patchGearLabel(gear, labelId, { align });
   }
 
+  updateInteractionString(
+    element: ShapeElement,
+    interactionId: string,
+    property: 'name',
+    value: string,
+  ): void {
+    this.patchInteraction(element, interactionId, { [property]: value } as Partial<ShapeInteraction>);
+  }
+
+  updateInteractionNumber(
+    element: ShapeElement,
+    interactionId: string,
+    property: 'pivotX' | 'pivotY' | 'startX' | 'startY' | 'endX' | 'endY',
+    rawValue: string | number,
+  ): void {
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (Number.isFinite(value)) {
+      this.patchInteraction(element, interactionId, { [property]: value } as Partial<ShapeInteraction>);
+    }
+  }
+
   isShapeElement(element: DesignElement): element is ShapeElement {
     return isShapeElement(element);
   }
@@ -514,6 +616,15 @@ export class App {
       label.id === labelId ? { ...label, ...patch } : label,
     );
     this.state.updateElement(gear.id, { labels } as Partial<GearElement>);
+    this.refreshYaml();
+  }
+
+  private patchInteraction(
+    element: ShapeElement,
+    interactionId: string,
+    patch: Partial<ShapeInteraction>,
+  ): void {
+    this.state.updateElementInteraction(element.id, interactionId, patch);
     this.refreshYaml();
   }
 

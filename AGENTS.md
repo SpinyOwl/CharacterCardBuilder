@@ -46,6 +46,9 @@ This document is for coding agents working in this repository. Keep changes narr
 - Left-panel drag/drop ordering was intentionally removed.
 - Gear rendering should not include a large internal circle. Use the editable center dot instead.
 - Gear labels are edited as independent label records on the gear, with text-style fields similar to text elements.
+- Shape interactions live on shape elements. Rotation requires a rotation point; sliding requires an axis.
+- Interactions should appear as child nodes under their owning shapes in the project tree.
+- Interaction guides are dashed and visible in edit/view mode when the interaction is visible.
 
 ## Implementation Guidance
 

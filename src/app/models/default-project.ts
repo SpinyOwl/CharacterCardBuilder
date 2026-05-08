@@ -51,6 +51,16 @@ export function createDefaultProject(): Project {
             stroke: '#6e4d19',
             strokeWidth: 1.2,
             interactive: true,
+            interactions: [
+              {
+                id: 'gear-rotation',
+                type: 'rotation',
+                name: 'Rotation point',
+                visible: true,
+                pivotX: 135,
+                pivotY: 56,
+              },
+            ],
             labels: [
               {
                 id: 'gear-label-1',

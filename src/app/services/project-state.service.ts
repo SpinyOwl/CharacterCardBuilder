@@ -4,8 +4,12 @@ import {
   DesignElement,
   DesignElementType,
   GearElement,
+  RotationInteraction,
+  ShapeInteraction,
+  SlideInteraction,
   isGearElement,
   isGroupElement,
+  isShapeElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { AppMode, CanvasSettings, PageSetup, Project } from '../models/project.model';
@@ -218,6 +222,24 @@ export class ProjectStateService {
     }));
   }
 
+  updateElementInteraction(
+    elementId: string,
+    interactionId: string,
+    patch: Partial<ShapeInteraction>,
+  ): void {
+    const found = this.findElement(elementId);
+    if (!found || !isShapeElement(found.element) || found.element.locked) {
+      return;
+    }
+
+    const interactions = (found.element.interactions ?? []).map((interaction) =>
+      interaction.id === interactionId
+        ? ({ ...interaction, ...patch } as ShapeInteraction)
+        : interaction,
+    );
+    this.updateElement(elementId, { interactions } as Partial<DesignElement>);
+  }
+
   deleteElement(elementId: string): void {
     const found = this.findElement(elementId);
     if (found?.element.locked) {
@@ -250,6 +272,75 @@ export class ProjectStateService {
     this.updateElement(elementId, {
       x: found.element.x + dx,
       y: found.element.y + dy,
+    } as Partial<DesignElement>);
+  }
+
+  rotateElementAroundPivotInViewMode(
+    elementId: string,
+    interactionId: string,
+    deltaDegrees: number,
+  ): void {
+    if (this.mode() !== 'view') {
+      return;
+    }
+
+    const found = this.findElement(elementId);
+    if (!found || !canEditElement(found.layer, found.element) || !isShapeElement(found.element)) {
+      return;
+    }
+
+    const interaction = (found.element.interactions ?? []).find(
+      (candidate): candidate is RotationInteraction =>
+        candidate.id === interactionId && candidate.type === 'rotation',
+    );
+    if (!interaction) {
+      return;
+    }
+
+    const radians = (deltaDegrees * Math.PI) / 180;
+    const dx = found.element.x - interaction.pivotX;
+    const dy = found.element.y - interaction.pivotY;
+    this.updateElement(elementId, {
+      x: interaction.pivotX + dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: interaction.pivotY + dx * Math.sin(radians) + dy * Math.cos(radians),
+      rotation: normalizeRotation(found.element.rotation + deltaDegrees),
+    } as Partial<DesignElement>);
+  }
+
+  slideElementAlongAxisInViewMode(
+    elementId: string,
+    interactionId: string,
+    dx: number,
+    dy: number,
+  ): void {
+    if (this.mode() !== 'view') {
+      return;
+    }
+
+    const found = this.findElement(elementId);
+    if (!found || !canEditElement(found.layer, found.element) || !isShapeElement(found.element)) {
+      return;
+    }
+
+    const interaction = (found.element.interactions ?? []).find(
+      (candidate): candidate is SlideInteraction =>
+        candidate.id === interactionId && candidate.type === 'slide',
+    );
+    if (!interaction) {
+      return;
+    }
+
+    const axisX = interaction.endX - interaction.startX;
+    const axisY = interaction.endY - interaction.startY;
+    const axisLength = Math.hypot(axisX, axisY);
+    if (axisLength === 0) {
+      return;
+    }
+
+    const projectedDistance = (dx * axisX + dy * axisY) / axisLength;
+    this.updateElement(elementId, {
+      x: found.element.x + (axisX / axisLength) * projectedDistance,
+      y: found.element.y + (axisY / axisLength) * projectedDistance,
     } as Partial<DesignElement>);
   }
 
@@ -303,6 +394,7 @@ export class ProjectStateService {
           fill: '#faf7ef',
           stroke: '#5e4b2f',
           strokeWidth: 1,
+          interactions: [],
         };
       case 'circle':
         return {
@@ -314,6 +406,7 @@ export class ProjectStateService {
           fill: '#dfe9dc',
           stroke: '#4f6b48',
           strokeWidth: 1,
+          interactions: [],
         };
       case 'triangle':
         return {
@@ -324,6 +417,7 @@ export class ProjectStateService {
           fill: '#e9dfc8',
           stroke: '#6e5a35',
           strokeWidth: 1,
+          interactions: [],
         };
       case 'gear':
         return {
@@ -346,6 +440,7 @@ export class ProjectStateService {
           interactive: true,
           currentRotation: 0,
           labels: [],
+          interactions: [],
         };
       case 'text':
         return {
