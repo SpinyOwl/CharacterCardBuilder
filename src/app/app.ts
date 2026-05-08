@@ -101,7 +101,7 @@ const MAX_SIDE_PANEL_WIDTH = 520;
 const COLLAPSED_SIDE_PANEL_WIDTH = 0;
 const SIDE_PANEL_SEPARATOR_WIDTH = 8;
 const SIDE_PANEL_COLLAPSE_THRESHOLD = 96;
-const CANVAS_SCALE_STEP = 0.25;
+const CANVAS_SCALE_STEP = 0.1;
 
 @Component({
   selector: 'app-root',
