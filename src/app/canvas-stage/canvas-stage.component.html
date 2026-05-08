@@ -374,14 +374,14 @@
                   [style.stroke-width]="appSettings.selectionOutlineThickness()"
                 />
               </g>
-              @if (isRectangle(element)) {
-                <g class="resize-overlay" [attr.transform]="rectangleTransform(element)">
+              @if (isShape(element)) {
+                <g class="resize-overlay" [attr.transform]="selectionBoxTransform(element)">
                   <rect
                     class="resize-outline"
                     x="0"
                     y="0"
-                    [attr.width]="element.width"
-                    [attr.height]="element.height"
+                    [attr.width]="selectionBox(element).width"
+                    [attr.height]="selectionBox(element).height"
                     [style.stroke]="appSettings.selectionOutlineColor()"
                     [style.stroke-width]="appSettings.selectionOutlineThickness()"
                   />
@@ -390,12 +390,12 @@
                       class="resize-handle"
                       [attr.width]="appSettings.selectionHandleSize()"
                       [attr.height]="appSettings.selectionHandleSize()"
-                      [attr.x]="resizeHandleX(element, handle) - resizeHandleOffset()"
-                      [attr.y]="resizeHandleY(element, handle) - resizeHandleOffset()"
+                      [attr.x]="resizeHandleX(selectionBox(element), handle) - resizeHandleOffset()"
+                      [attr.y]="resizeHandleY(selectionBox(element), handle) - resizeHandleOffset()"
                       [style.stroke]="appSettings.selectionOutlineColor()"
                       [style.stroke-width]="appSettings.selectionOutlineThickness()"
                       [style.cursor]="resizeCursor(handle)"
-                      (pointerdown)="onRectangleResizePointerDown($event, element, handle)"
+                      (pointerdown)="onShapeResizePointerDown($event, element, handle)"
                     />
                   }
                 </g>

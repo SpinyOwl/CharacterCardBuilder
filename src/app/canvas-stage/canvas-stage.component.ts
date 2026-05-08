@@ -12,7 +12,6 @@ import {
   ShapeInteraction,
   isGearElement,
   isGroupElement,
-  isRectangleElement,
   isShapeElement,
 } from '../models/element.model';
 import { Layer } from '../models/layer.model';
@@ -41,11 +40,12 @@ type DragState =
       last: Point;
     }
   | {
-      kind: 'resize-rectangle';
+      kind: 'resize-shape';
       elementId: string;
       handle: ResizeHandle;
       startPointer: { x: number; y: number };
-      start: { x: number; y: number; width: number; height: number; rotation: number };
+      startBox: SelectionBox;
+      startElement: ShapeElement;
     };
 
 interface RenderSegment {
@@ -108,9 +108,9 @@ export class CanvasStageComponent {
     };
   }
 
-  onRectangleResizePointerDown(
+  onShapeResizePointerDown(
     event: PointerEvent,
-    element: RectangleElement,
+    element: ShapeElement,
     handle: ResizeHandle,
   ): void {
     event.stopPropagation();
@@ -132,17 +132,12 @@ export class CanvasStageComponent {
 
     this.state.selectElement(element.id);
     this.dragState = {
-      kind: 'resize-rectangle',
+      kind: 'resize-shape',
       elementId: element.id,
       handle,
       startPointer: this.pointerToSvgPoint(event),
-      start: {
-        x: element.x,
-        y: element.y,
-        width: element.width,
-        height: element.height,
-        rotation: element.rotation,
-      },
+      startBox: this.selectionBox(element),
+      startElement: structuredClone(element),
     };
   }
 
@@ -215,8 +210,8 @@ export class CanvasStageComponent {
       return;
     }
 
-    if (this.dragState.kind === 'resize-rectangle') {
-      this.resizeRectangleFromPointer(event, this.dragState);
+    if (this.dragState.kind === 'resize-shape') {
+      this.resizeShapeFromPointer(event, this.dragState);
       this.projectChanged.emit();
       return;
     }
@@ -512,7 +507,7 @@ export class CanvasStageComponent {
   }
 
   isRectangle(element: DesignElement): element is RectangleElement {
-    return isRectangleElement(element);
+    return element.type === 'rectangle';
   }
 
   isShape(element: DesignElement): element is ShapeElement {
@@ -570,18 +565,18 @@ export class CanvasStageComponent {
     return segments;
   }
 
-  resizeHandleX(element: RectangleElement, handle: ResizeHandle): number {
+  resizeHandleX(box: Pick<SelectionBox, 'width'>, handle: ResizeHandle): number {
     if (handle.includes('w')) {
       return 0;
     }
-    return handle.includes('e') ? element.width : element.width / 2;
+    return handle.includes('e') ? box.width : box.width / 2;
   }
 
-  resizeHandleY(element: RectangleElement, handle: ResizeHandle): number {
+  resizeHandleY(box: Pick<SelectionBox, 'height'>, handle: ResizeHandle): number {
     if (handle.includes('n')) {
       return 0;
     }
-    return handle.includes('s') ? element.height : element.height / 2;
+    return handle.includes('s') ? box.height : box.height / 2;
   }
 
   resizeCursor(handle: ResizeHandle): string {
@@ -630,19 +625,29 @@ export class CanvasStageComponent {
     );
   }
 
-  private resizeRectangleFromPointer(
+  private resizeShapeFromPointer(
     event: PointerEvent,
-    dragState: Extract<DragState, { kind: 'resize-rectangle' }>,
+    dragState: Extract<DragState, { kind: 'resize-shape' }>,
   ): void {
     const found = this.state.findElement(dragState.elementId);
-    if (!found || !isRectangleElement(found.element)) {
+    if (!found || !isShapeElement(found.element)) {
       return;
     }
 
+    const box = this.resizeBoxFromPointer(event, dragState);
+    const patch = this.shapeResizePatch(dragState.startElement, box, dragState.handle);
+    this.state.updateElement(dragState.elementId, patch as Partial<ShapeElement>);
+  }
+
+  private resizeBoxFromPointer(
+    event: PointerEvent,
+    dragState: Extract<DragState, { kind: 'resize-shape' }>,
+  ): SelectionBox {
     const point = this.pointerToSvgPoint(event);
     const dx = point.x - dragState.startPointer.x;
     const dy = point.y - dragState.startPointer.y;
-    const radians = (dragState.start.rotation * Math.PI) / 180;
+    const start = dragState.startBox;
+    const radians = (start.rotation * Math.PI) / 180;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
     const localDx = dx * cos + dy * sin;
@@ -652,28 +657,34 @@ export class CanvasStageComponent {
 
     const requestedWidth =
       handle.includes('e') || handle.includes('w')
-        ? dragState.start.width + (handle.includes('e') ? localDx : -localDx)
-        : dragState.start.width;
+        ? start.width + (handle.includes('e') ? localDx : -localDx)
+        : start.width;
     const requestedHeight =
       handle.includes('n') || handle.includes('s')
-        ? dragState.start.height + (handle.includes('s') ? localDy : -localDy)
-        : dragState.start.height;
-    const width = Math.max(minSize, requestedWidth);
-    const height = Math.max(minSize, requestedHeight);
+        ? start.height + (handle.includes('s') ? localDy : -localDy)
+        : start.height;
+    const constrainedSize = this.constrainResizeDimensions(
+      dragState.startElement,
+      Math.max(minSize, requestedWidth),
+      Math.max(minSize, requestedHeight),
+      event.shiftKey,
+    );
+    const width = constrainedSize.width;
+    const height = constrainedSize.height;
 
     const centerShiftLocalX = handle.includes('e')
-      ? (width - dragState.start.width) / 2
+      ? (width - start.width) / 2
       : handle.includes('w')
-        ? (dragState.start.width - width) / 2
+        ? (start.width - width) / 2
         : 0;
     const centerShiftLocalY = handle.includes('s')
-      ? (height - dragState.start.height) / 2
+      ? (height - start.height) / 2
       : handle.includes('n')
-        ? (dragState.start.height - height) / 2
+        ? (start.height - height) / 2
         : 0;
 
-    const centerX = dragState.start.x + dragState.start.width / 2;
-    const centerY = dragState.start.y + dragState.start.height / 2;
+    const centerX = start.x + start.width / 2;
+    const centerY = start.y + start.height / 2;
     const shiftedCenterX = centerX + centerShiftLocalX * cos - centerShiftLocalY * sin;
     const shiftedCenterY = centerY + centerShiftLocalX * sin + centerShiftLocalY * cos;
 
@@ -684,7 +695,118 @@ export class CanvasStageComponent {
       height,
     });
 
-    this.state.updateElement(dragState.elementId, resized as Partial<RectangleElement>);
+    return { ...resized, rotation: start.rotation };
+  }
+
+  private shapeResizePatch(
+    element: ShapeElement,
+    box: SelectionBox,
+    handle: ResizeHandle,
+  ): Partial<ShapeElement> {
+    switch (element.type) {
+      case 'rectangle':
+      case 'triangle':
+        return {
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+        } as Partial<ShapeElement>;
+      case 'circle': {
+        const square = this.squareResizeBox(element, box, handle);
+        return {
+          x: square.x + square.width / 2,
+          y: square.y + square.height / 2,
+          radius: square.width / 2,
+        } as Partial<ShapeElement>;
+      }
+      case 'gear': {
+        const square = this.squareResizeBox(element, box, handle);
+        const oldOuterRadius = Math.max(1, element.discRadius + element.toothHeight);
+        const scale = square.width / 2 / oldOuterRadius;
+        return {
+          x: square.x + square.width / 2,
+          y: square.y + square.height / 2,
+          discRadius: Math.max(1, element.discRadius * scale),
+          toothHeight: Math.max(0.5, element.toothHeight * scale),
+          centerDotRadius: Math.max(0.3, element.centerDotRadius * scale),
+        } as Partial<ShapeElement>;
+      }
+      case 'polygon':
+        return this.polygonResizePatch(element, box) as Partial<ShapeElement>;
+    }
+  }
+
+  private constrainResizeDimensions(
+    element: ShapeElement,
+    width: number,
+    height: number,
+    constrainAspectRatio: boolean,
+  ): { width: number; height: number } {
+    if (!constrainAspectRatio || (element.type !== 'rectangle' && element.type !== 'triangle')) {
+      return { width, height };
+    }
+
+    const ratio = element.type === 'triangle' ? Math.sqrt(3) / 2 : 1;
+    const side = Math.max(width, height / ratio);
+    return {
+      width: side,
+      height: side * ratio,
+    };
+  }
+
+  private squareResizeBox(
+    element: ShapeElement,
+    resizedBox: SelectionBox,
+    handle: ResizeHandle,
+  ): SelectionBox {
+    const start = this.selectionBox(element);
+    const requestedSize = Math.max(
+      2,
+      handle.includes('e') || handle.includes('w') ? resizedBox.width : 0,
+      handle.includes('n') || handle.includes('s') ? resizedBox.height : 0,
+      !/[ewns]/.test(handle) ? start.width : 0,
+    );
+    const centerX = start.x + start.width / 2;
+    const centerY = start.y + start.height / 2;
+    const x = handle.includes('w')
+      ? start.x + start.width - requestedSize
+      : handle.includes('e')
+        ? start.x
+        : centerX - requestedSize / 2;
+    const y = handle.includes('n')
+      ? start.y + start.height - requestedSize
+      : handle.includes('s')
+        ? start.y
+        : centerY - requestedSize / 2;
+    return { x, y, width: requestedSize, height: requestedSize, rotation: start.rotation };
+  }
+
+  private polygonResizePatch(
+    element: ShapeElement & { points: Point[] },
+    box: SelectionBox,
+  ): Partial<ShapeElement> {
+    if (element.points.length === 0) {
+      return { x: box.x, y: box.y } as Partial<ShapeElement>;
+    }
+
+    const minX = Math.min(...element.points.map((point) => point.x));
+    const minY = Math.min(...element.points.map((point) => point.y));
+    const maxX = Math.max(...element.points.map((point) => point.x));
+    const maxY = Math.max(...element.points.map((point) => point.y));
+    const width = Math.max(1, maxX - minX);
+    const height = Math.max(1, maxY - minY);
+    const scaleX = box.width / width;
+    const scaleY = box.height / height;
+
+    return {
+      x: box.x,
+      y: box.y,
+      points: element.points.map((point) => ({
+        x: (point.x - minX) * scaleX,
+        y: (point.y - minY) * scaleY,
+      })),
+    } as Partial<ShapeElement>;
   }
 
   private pointerToSvgPoint(event: PointerEvent): { x: number; y: number } {
@@ -1028,7 +1150,7 @@ export class CanvasStageComponent {
   }
 
   private toElementLocalPoint(point: Point, element: DesignElement): Point {
-    if (isRectangleElement(element)) {
+    if (element.type === 'rectangle') {
       const centerX = element.x + element.width / 2;
       const centerY = element.y + element.height / 2;
       const radians = (-element.rotation * Math.PI) / 180;
