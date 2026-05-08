@@ -285,6 +285,17 @@ export class App {
     this.appSettings.updateSelectionHandleSize(value);
   }
 
+  toggleGrid(): void {
+    this.appSettings.updateGridEnabled(!this.appSettings.gridEnabled());
+  }
+
+  updateGridSize(rawValue: string | number): void {
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (Number.isFinite(value)) {
+      this.appSettings.updateGridSize(value);
+    }
+  }
+
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {
     this.pageSetupDraft.update((draft) => ({ ...draft, [property]: value }));
   }

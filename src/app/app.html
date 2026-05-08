@@ -124,7 +124,7 @@
           <span class="material-symbols-outlined" aria-hidden="true">folder</span>
         </button>
       </div>
-      <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
+      <div ngToolbarWidgetGroup class="snap-tool-group" aria-label="Snap tools">
         <button
           ngToolbarWidget
           value="toggle-sticky"
@@ -138,6 +138,36 @@
         >
           <span class="material-symbols-outlined" aria-hidden="true">join_inner</span>
         </button>
+      </div>
+      <div ngToolbarWidgetGroup class="grid-tool-group" aria-label="Grid tools">
+        <button
+          ngToolbarWidget
+          value="toggle-grid"
+          type="button"
+          class="toolbar-icon-button"
+          [class.active]="appSettings.gridEnabled()"
+          [title]="appSettings.gridEnabled() ? 'Disable grid snapping' : 'Enable grid snapping'"
+          [attr.aria-label]="
+            appSettings.gridEnabled() ? 'Disable grid snapping' : 'Enable grid snapping'
+          "
+          [attr.aria-pressed]="appSettings.gridEnabled()"
+          (click)="toggleGrid()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">grid_on</span>
+        </button>
+        <label class="toolbar-number-field" title="Grid size in millimeters">
+          <span>mm</span>
+          <input
+            type="number"
+            min="0.5"
+            step="0.5"
+            [ngModel]="appSettings.gridSize()"
+            (ngModelChange)="updateGridSize($event)"
+            aria-label="Grid size in millimeters"
+          />
+        </label>
+      </div>
+      <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
         <button
           ngToolbarWidget
           value="toggle-mode"
@@ -413,6 +443,8 @@
 
     <app-canvas-stage
       [stickyPointsEnabled]="isStickyEnabled()"
+      [gridEnabled]="appSettings.gridEnabled()"
+      [gridSize]="appSettings.gridSize()"
       (projectChanged)="refreshYaml()"
     />
 

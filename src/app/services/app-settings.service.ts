@@ -7,6 +7,8 @@ export interface AppSettings {
   selectionOutlineColor: string;
   selectionOutlineThickness: number;
   selectionHandleSize: number;
+  gridEnabled: boolean;
+  gridSize: number;
 }
 
 const SETTINGS_STORAGE_KEY = 'character-card-builder:app-settings';
@@ -15,6 +17,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   selectionOutlineColor: '#d21f3c',
   selectionOutlineThickness: 0.8,
   selectionHandleSize: 2.8,
+  gridEnabled: false,
+  gridSize: 5,
 };
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 
@@ -29,6 +33,8 @@ export class AppSettingsService {
     () => this.settingsState().selectionOutlineThickness,
   );
   readonly selectionHandleSize = computed(() => this.settingsState().selectionHandleSize);
+  readonly gridEnabled = computed(() => this.settingsState().gridEnabled);
+  readonly gridSize = computed(() => this.settingsState().gridSize);
 
   updateTheme(theme: ApplicationTheme): void {
     this.updateSettings({ theme });
@@ -53,6 +59,16 @@ export class AppSettingsService {
         selectionHandleSize,
         DEFAULT_SETTINGS.selectionHandleSize,
       ),
+    });
+  }
+
+  updateGridEnabled(gridEnabled: boolean): void {
+    this.updateSettings({ gridEnabled });
+  }
+
+  updateGridSize(gridSize: number): void {
+    this.updateSettings({
+      gridSize: this.normalizePositiveNumber(gridSize, DEFAULT_SETTINGS.gridSize),
     });
   }
 
@@ -84,6 +100,8 @@ export class AppSettingsService {
           settings.selectionHandleSize,
           DEFAULT_SETTINGS.selectionHandleSize,
         ),
+        gridEnabled: settings.gridEnabled === true,
+        gridSize: this.normalizePositiveNumber(settings.gridSize, DEFAULT_SETTINGS.gridSize),
       };
     } catch {
       return DEFAULT_SETTINGS;

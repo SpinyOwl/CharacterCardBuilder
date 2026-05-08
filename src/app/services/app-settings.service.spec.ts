@@ -13,6 +13,8 @@ describe('AppSettingsService', () => {
     expect(settings.selectionOutlineColor()).toBe('#d21f3c');
     expect(settings.selectionOutlineThickness()).toBe(0.8);
     expect(settings.selectionHandleSize()).toBe(2.8);
+    expect(settings.gridEnabled()).toBe(false);
+    expect(settings.gridSize()).toBe(5);
   });
 
   it('persists the selected theme between service instances', () => {
@@ -59,5 +61,31 @@ describe('AppSettingsService', () => {
     expect(settings.selectionOutlineColor()).toBe('#d21f3c');
     expect(settings.selectionOutlineThickness()).toBe(0.8);
     expect(settings.selectionHandleSize()).toBe(2.8);
+  });
+
+  it('persists grid settings between service instances', () => {
+    const settings = new AppSettingsService();
+
+    settings.updateGridEnabled(true);
+    settings.updateGridSize(2.5);
+
+    const reloadedSettings = new AppSettingsService();
+    expect(reloadedSettings.gridEnabled()).toBe(true);
+    expect(reloadedSettings.gridSize()).toBe(2.5);
+  });
+
+  it('falls back to defaults for invalid grid settings', () => {
+    localStorage.setItem(
+      'character-card-builder:app-settings',
+      JSON.stringify({
+        gridEnabled: 'yes',
+        gridSize: 0,
+      }),
+    );
+
+    const settings = new AppSettingsService();
+
+    expect(settings.gridEnabled()).toBe(false);
+    expect(settings.gridSize()).toBe(5);
   });
 });

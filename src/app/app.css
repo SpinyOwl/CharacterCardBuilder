@@ -83,9 +83,13 @@
 
 .menubar,
 .toolbar,
-.button-row,
-.tool-group,
-.mode-tool-group {
+.button-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.toolbar > div {
   display: flex;
   gap: 6px;
   align-items: center;
@@ -93,10 +97,6 @@
 
 .toolbar {
   flex-wrap: wrap;
-}
-
-.mode-tool-group {
-  margin-left: auto;
 }
 
 .menu-root {
@@ -121,8 +121,8 @@ button.active {
   padding: 0 12px;
 }
 
-.tool-group {
-  margin-right: auto;
+.mode-tool-group {
+  margin-left: auto;
 }
 
 .toolbar-icon-button {
@@ -131,6 +131,15 @@ button.active {
   min-width: 32px;
   place-items: center;
   padding: 0;
+}
+
+.toolbar-number-field {
+  display: flex;
+  margin: 0;
+}
+
+.toolbar-number-field input {
+  width: 68px;
 }
 
 .menu-popover {

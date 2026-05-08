@@ -16,6 +16,14 @@
       [attr.height]="state.project().canvas.height"
       [attr.fill]="state.project().canvas.backgroundColor ?? '#ffffff'"
     />
+    @if (showGrid()) {
+      <rect
+        class="editor-grid"
+        [attr.width]="state.project().canvas.width"
+        [attr.height]="state.project().canvas.height"
+        [attr.fill]="'url(#' + gridPatternId() + ')'"
+      />
+    }
     @if (state.mode() === 'edit') {
       <rect
         class="page-margin-guide"
@@ -35,6 +43,15 @@
     }
 
     <defs>
+      <pattern
+        [attr.id]="gridPatternId()"
+        patternUnits="userSpaceOnUse"
+        [attr.width]="normalizedGridSize()"
+        [attr.height]="normalizedGridSize()"
+      >
+        <path class="editor-grid-line" [attr.d]="gridPath()" />
+      </pattern>
+
       @for (layer of state.visibleLayers(); track layer.id) {
         @for (element of allElements(layer.elements); track element.id) {
           @if ('backgroundImage' in element && element.backgroundImage) {

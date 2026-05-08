@@ -41,6 +41,17 @@
   pointer-events: none;
 }
 
+.editor-grid {
+  pointer-events: none;
+}
+
+.editor-grid-line {
+  fill: none;
+  stroke: #667466;
+  stroke-width: 0.24;
+  opacity: 0.42;
+}
+
 .page-margin-guide {
   stroke: #7a8796;
   stroke-width: 0.5;

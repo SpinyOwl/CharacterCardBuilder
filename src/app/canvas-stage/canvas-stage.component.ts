@@ -24,7 +24,12 @@ import { createPolygonPath, createTrianglePath, roundedRectPath } from '../utils
 type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 type DragState =
-  | { kind: 'move'; elementId: string; last: { x: number; y: number } }
+  | {
+      kind: 'move';
+      elementId: string;
+      startPointer: Point;
+      start: { x: number; y: number };
+    }
   | { kind: 'rotate'; elementId: string; lastAngle: number }
   | { kind: 'rotate-interaction'; elementId: string; interactionId: string; lastAngle: number }
   | { kind: 'slide-interaction'; elementId: string; interactionId: string; last: Point }
@@ -66,6 +71,8 @@ interface SelectionBox {
 })
 export class CanvasStageComponent {
   @Input() stickyPointsEnabled = false;
+  @Input() gridEnabled = false;
+  @Input() gridSize = 5;
   @ViewChild('scene', { static: false }) private readonly scene?: ElementRef<SVGSVGElement>;
 
   readonly projectChanged = output<void>();
@@ -96,7 +103,8 @@ export class CanvasStageComponent {
     this.dragState = {
       kind: 'move',
       elementId: element.id,
-      last: this.pointerToSvgPoint(event),
+      startPointer: this.pointerToSvgPoint(event),
+      start: { x: element.x, y: element.y },
     };
   }
 
@@ -202,13 +210,7 @@ export class CanvasStageComponent {
     }
 
     if (this.dragState.kind === 'move') {
-      const point = this.pointerToSvgPoint(event);
-      this.state.moveElementInEditMode(
-        this.dragState.elementId,
-        point.x - this.dragState.last.x,
-        point.y - this.dragState.last.y,
-      );
-      this.dragState = { ...this.dragState, last: point };
+      this.moveElementFromPointer(event, this.dragState);
       this.projectChanged.emit();
       return;
     }
@@ -590,6 +592,44 @@ export class CanvasStageComponent {
     return this.appSettings.selectionHandleSize() / 2;
   }
 
+  gridPatternId(): string {
+    return 'editor-grid-pattern';
+  }
+
+  normalizedGridSize(): number {
+    return Number.isFinite(this.gridSize) && this.gridSize > 0 ? this.gridSize : 5;
+  }
+
+  gridPath(): string {
+    const size = this.normalizedGridSize();
+    return `M ${size} 0 L 0 0 0 ${size}`;
+  }
+
+  showGrid(): boolean {
+    return this.gridEnabled && this.state.mode() === 'edit';
+  }
+
+  private moveElementFromPointer(
+    event: PointerEvent,
+    dragState: Extract<DragState, { kind: 'move' }>,
+  ): void {
+    const found = this.state.findElement(dragState.elementId);
+    if (!found) {
+      return;
+    }
+
+    const point = this.pointerToSvgPoint(event);
+    const target = this.snapToGrid({
+      x: dragState.start.x + point.x - dragState.startPointer.x,
+      y: dragState.start.y + point.y - dragState.startPointer.y,
+    });
+    this.state.moveElementInEditMode(
+      dragState.elementId,
+      target.x - found.element.x,
+      target.y - found.element.y,
+    );
+  }
+
   private resizeRectangleFromPointer(
     event: PointerEvent,
     dragState: Extract<DragState, { kind: 'resize-rectangle' }>,
@@ -637,12 +677,14 @@ export class CanvasStageComponent {
     const shiftedCenterX = centerX + centerShiftLocalX * cos - centerShiftLocalY * sin;
     const shiftedCenterY = centerY + centerShiftLocalX * sin + centerShiftLocalY * cos;
 
-    this.state.updateElement(dragState.elementId, {
+    const resized = this.snapRectangleToGrid({
       x: shiftedCenterX - width / 2,
       y: shiftedCenterY - height / 2,
       width,
       height,
-    } as Partial<RectangleElement>);
+    });
+
+    this.state.updateElement(dragState.elementId, resized as Partial<RectangleElement>);
   }
 
   private pointerToSvgPoint(event: PointerEvent): { x: number; y: number } {
@@ -698,6 +740,46 @@ export class CanvasStageComponent {
       .sort((a, b) => a.distance - b.distance)[0];
 
     return nearest && nearest.distance <= snapDistance ? nearest.point : point;
+  }
+
+  private snapToGrid(point: Point): Point {
+    if (!this.gridEnabled) {
+      return point;
+    }
+
+    return {
+      x: this.snapNumberToGrid(point.x),
+      y: this.snapNumberToGrid(point.y),
+    };
+  }
+
+  private snapRectangleToGrid(rectangle: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } {
+    if (!this.gridEnabled) {
+      return rectangle;
+    }
+
+    const minSize = 2;
+    return {
+      x: this.snapNumberToGrid(rectangle.x),
+      y: this.snapNumberToGrid(rectangle.y),
+      width: Math.max(minSize, this.snapNumberToGrid(rectangle.width)),
+      height: Math.max(minSize, this.snapNumberToGrid(rectangle.height)),
+    };
+  }
+
+  private snapNumberToGrid(value: number): number {
+    const size = this.normalizedGridSize();
+    return Math.round(value / size) * size;
   }
 
   private shapeSnapPoints(element: ShapeElement): Point[] {
