@@ -231,7 +231,12 @@
               <span class="tree-name">{{ node.name }}</span>
 
               @if (node.kind === 'layer') {
-                <div class="tree-controls">
+                <div
+                  class="tree-controls"
+                  (pointerdown)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (click)="$event.stopPropagation()"
+                >
                   <button
                     type="button"
                     class="tree-icon-button"
@@ -262,7 +267,12 @@
                   </button>
                 </div>
               } @else if (node.kind === 'element') {
-                <div class="tree-controls">
+                <div
+                  class="tree-controls"
+                  (pointerdown)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (click)="$event.stopPropagation()"
+                >
                   <button
                     type="button"
                     class="tree-icon-button"
@@ -307,7 +317,12 @@
                   </button>
                 </div>
               } @else {
-                <div class="tree-controls">
+                <div
+                  class="tree-controls"
+                  (pointerdown)="$event.stopPropagation()"
+                  (keydown)="$event.stopPropagation()"
+                  (click)="$event.stopPropagation()"
+                >
                   <button
                     type="button"
                     class="tree-icon-button"
