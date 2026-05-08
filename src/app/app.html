@@ -184,11 +184,15 @@
               [parent]="parent"
               [value]="node.value"
               [label]="node.name"
-              [(expanded)]="node.expanded"
+              [expanded]="isProjectTreeNodeExpanded(node)"
+              (expandedChange)="node.expanded = $event"
               #treeItem="ngTreeItem"
               class="tree-row"
               [class.layer-row]="node.kind === 'layer'"
               [class.element-row]="node.kind === 'element'"
+              [class.drop-above]="isProjectTreeDropTarget(node, 'above')"
+              [class.drop-inside]="isProjectTreeDropTarget(node, 'inside')"
+              [class.drop-below]="isProjectTreeDropTarget(node, 'below')"
               [class.muted-row]="
                 node.kind === 'layer'
                   ? !node.layer.visible
@@ -197,6 +201,12 @@
                     : !node.interaction.visible
               "
               [class.locked-row]="node.kind === 'element' && node.element.locked"
+              [attr.draggable]="isProjectTreeNodeDraggable(node) ? 'true' : null"
+              (dragstart)="onProjectTreeDragStart($event, node)"
+              (dragover)="onProjectTreeDragOver($event, node)"
+              (drop)="onProjectTreeDrop($event, node)"
+              (dragend)="onProjectTreeDragEnd()"
+              (pointerdown)="$event.stopPropagation()"
               (click)="
                 node.kind === 'layer'
                   ? state.selectLayer(node.layer.id)
@@ -205,10 +215,21 @@
                     : state.selectElement(node.owner.id)
               "
             >
-              <span
-                aria-hidden="true"
-                class="tree-icon material-symbols-outlined expand-icon"
-                >{{ node.children.length > 0 ? 'chevron_right' : '' }}</span
+              <button
+                type="button"
+                class="tree-expand-button"
+                [disabled]="node.children.length === 0"
+                [title]="isProjectTreeNodeExpanded(node) ? 'Collapse' : 'Expand'"
+                [attr.aria-label]="isProjectTreeNodeExpanded(node) ? 'Collapse' : 'Expand'"
+                [attr.aria-expanded]="node.children.length > 0 ? isProjectTreeNodeExpanded(node) : null"
+                (click)="$event.stopPropagation(); toggleProjectTreeNodeExpanded(node)"
+              >
+                <span
+                  aria-hidden="true"
+                  class="tree-icon material-symbols-outlined expand-icon"
+                  >{{ node.children.length > 0 ? 'chevron_right' : '' }}</span
+                >
+              </button>
               >
               <span
                 aria-hidden="true"
@@ -991,6 +1012,7 @@
             </label>
           </div>
         </fieldset>
+
         <footer class="dialog-actions">
           <button type="button" class="primary-button" (click)="closeSettings()">Done</button>
         </footer>

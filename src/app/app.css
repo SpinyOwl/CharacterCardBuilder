@@ -37,7 +37,6 @@
   --stage-bg: #d6dcd2;
   --stage-border: #9aa397;
   --stage-shadow: rgba(24, 31, 27, 0.16);
-  --page-bg: #ffffff;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
@@ -71,7 +70,6 @@
   --stage-bg: #111614;
   --stage-border: #58635b;
   --stage-shadow: rgba(0, 0, 0, 0.34);
-  --page-bg: #ffffff;
 }
 
 .topbar {
@@ -313,10 +311,6 @@ li[aria-expanded='false'] + ul[role='group'] {
   text-align: center;
 }
 
-.element-type-icon {
-  color: var(--app-muted);
-}
-
 .expand-icon {
   transition: transform 0.16s ease;
 }
@@ -345,10 +339,6 @@ li[aria-expanded='false'] + ul[role='group'] {
 .tree-icon-button.active {
   border-color: var(--app-border);
   background: var(--app-hover-bg);
-}
-
-.tree-icon-button.inactive {
-  color: var(--app-muted);
 }
 
 .tree-icon-button:disabled {
@@ -471,6 +461,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   margin: 0;
   border: 0;
 }
+
 .page-setup-dialog input,
 .page-setup-dialog select {
   min-height: 40px;

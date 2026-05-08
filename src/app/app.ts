@@ -22,6 +22,7 @@ import { ImportExportService } from './services/import-export.service';
 import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
 import { AppSettingsService, ApplicationTheme } from './services/app-settings.service';
+import { ElementContainer } from './services/project-state.service';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
   A6: { width: 105, height: 148 },
@@ -49,6 +50,7 @@ type ProjectTreeNode =
       layer: Layer;
       children: ProjectTreeNode[];
       expanded: boolean;
+      index: number;
     }
   | {
       kind: 'element';
@@ -57,6 +59,8 @@ type ProjectTreeNode =
       element: DesignElement;
       expanded?: boolean;
       children: ProjectTreeNode[];
+      container: ElementContainer;
+      index: number;
     }
   | {
       kind: 'interaction';
@@ -66,6 +70,28 @@ type ProjectTreeNode =
       interaction: ShapeInteraction;
       children: ProjectTreeNode[];
     };
+
+type ProjectTreeDropPosition = 'above' | 'inside' | 'below';
+
+type ProjectTreeDragData =
+  | {
+      kind: 'layer';
+      value: string;
+      layerId: string;
+      index: number;
+    }
+  | {
+      kind: 'element';
+      value: string;
+      elementId: string;
+      container: ElementContainer;
+      index: number;
+    };
+
+type ProjectTreeDropTarget = {
+  value: string;
+  position: ProjectTreeDropPosition;
+};
 
 @Component({
   selector: 'app-root',
@@ -103,6 +129,9 @@ export class App {
   readonly isSettingsOpen = signal(false);
   readonly isStickyEnabled = signal(false);
   readonly selectedGearLabelId = signal<string | null>(null);
+  readonly projectTreeDropTarget = signal<ProjectTreeDropTarget | null>(null);
+  readonly isProjectTreeLayerDragActive = signal(false);
+  private projectTreeDragData: ProjectTreeDragData | null = null;
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
   readonly selectedProjectTreeValues = computed(() => {
@@ -115,13 +144,16 @@ export class App {
     return selectedLayerId ? [this.layerTreeValue(selectedLayerId)] : [];
   });
   readonly projectTreeNodes = computed<ProjectTreeNode[]>(() =>
-    this.state.project().layers.map((layer) => ({
+    this.state.project().layers.map((layer, index) => ({
       kind: 'layer',
       name: layer.name,
       value: this.layerTreeValue(layer.id),
       layer,
+      index,
       expanded: true,
-      children: layer.elements.map((element) => this.elementTreeNode(element)),
+      children: layer.elements.map((element, elementIndex) =>
+        this.elementTreeNode(element, { kind: 'layer', layerId: layer.id }, elementIndex),
+      ),
     })),
   );
   readonly visibleDesignBounds = computed(() => this.measureVisibleDesignBounds());
@@ -253,6 +285,7 @@ export class App {
 
     this.appSettings.updateSelectionHandleSize(value);
   }
+
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {
     this.pageSetupDraft.update((draft) => ({ ...draft, [property]: value }));
   }
@@ -385,6 +418,112 @@ export class App {
     this.refreshYaml();
   }
 
+  isProjectTreeNodeDraggable(node: ProjectTreeNode): boolean {
+    if (node.kind === 'interaction') {
+      return false;
+    }
+    return node.kind === 'layer' || !node.element.locked;
+  }
+
+  onProjectTreeDragStart(event: DragEvent, node: ProjectTreeNode): void {
+    if (!this.isProjectTreeNodeDraggable(node)) {
+      event.preventDefault();
+      return;
+    }
+
+    if (node.kind === 'layer') {
+      this.projectTreeDragData = {
+        kind: 'layer',
+        value: node.value,
+        layerId: node.layer.id,
+        index: node.index,
+      };
+      this.isProjectTreeLayerDragActive.set(true);
+    } else if (node.kind === 'element') {
+      this.projectTreeDragData = {
+        kind: 'element',
+        value: node.value,
+        elementId: node.element.id,
+        container: node.container,
+        index: node.index,
+      };
+    }
+    event.dataTransfer?.setData('text/plain', node.value);
+    event.dataTransfer?.setDragImage(event.currentTarget as Element, 12, 12);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+    }
+  }
+
+  onProjectTreeDragOver(event: DragEvent, node: ProjectTreeNode): void {
+    if (!this.projectTreeDragData || !this.canDropProjectTreeNode(this.projectTreeDragData, node)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    this.projectTreeDropTarget.set({
+      value: node.value,
+      position: this.projectTreeDropPosition(event, node),
+    });
+  }
+
+  onProjectTreeDrop(event: DragEvent, node: ProjectTreeNode): void {
+    const dragData = this.projectTreeDragData;
+    if (!dragData || !this.canDropProjectTreeNode(dragData, node)) {
+      this.clearProjectTreeDrag();
+      return;
+    }
+
+    event.preventDefault();
+    const position = this.projectTreeDropPosition(event, node);
+    if (dragData.kind === 'layer' && node.kind === 'layer') {
+      const targetIndex = position === 'below' ? node.index + 1 : node.index;
+      this.state.reorderLayer(
+        dragData.index,
+        this.adjustSameContainerIndex(dragData.index, targetIndex),
+      );
+    }
+
+    if (dragData.kind === 'element' && node.kind !== 'interaction') {
+      const target = this.projectTreeElementDropTarget(node, position);
+      const targetIndex = containersEqual(dragData.container, target.container)
+        ? this.adjustSameContainerIndex(dragData.index, target.index)
+        : target.index;
+      this.state.moveElementToContainer(dragData.elementId, target.container, targetIndex);
+    }
+
+    this.refreshYaml();
+    this.clearProjectTreeDrag();
+  }
+
+  onProjectTreeDragEnd(): void {
+    this.clearProjectTreeDrag();
+  }
+
+  isProjectTreeDropTarget(node: ProjectTreeNode, position: ProjectTreeDropPosition): boolean {
+    const target = this.projectTreeDropTarget();
+    return target?.value === node.value && target.position === position;
+  }
+
+  isProjectTreeNodeExpanded(node: ProjectTreeNode): boolean {
+    if (node.kind === 'interaction') {
+      return false;
+    }
+    return node.kind === 'layer' && this.isProjectTreeLayerDragActive()
+      ? false
+      : Boolean(node.expanded);
+  }
+
+  toggleProjectTreeNodeExpanded(node: ProjectTreeNode): void {
+    if (node.kind === 'interaction' || node.children.length === 0) {
+      return;
+    }
+    node.expanded = !this.isProjectTreeNodeExpanded(node);
+  }
+
   addRotationInteraction(element: ShapeElement): void {
     const interaction: ShapeInteraction = {
       id: `rotation-${crypto.randomUUID().slice(0, 8)}`,
@@ -477,7 +616,11 @@ export class App {
     this.refreshYaml();
   }
 
-  private elementTreeNode(element: DesignElement): ProjectTreeNode {
+  private elementTreeNode(
+    element: DesignElement,
+    container: ElementContainer,
+    index: number,
+  ): ProjectTreeNode {
     const interactionNodes = isShapeElement(element)
       ? (element.interactions ?? []).map((interaction) => ({
           kind: 'interaction' as const,
@@ -494,11 +637,89 @@ export class App {
       name: element.name,
       value: this.elementTreeValue(element.id),
       element,
+      container,
+      index,
       expanded: true,
       children: isGroupElement(element)
-        ? element.elements.map((child) => this.elementTreeNode(child))
+        ? element.elements.map((child, childIndex) =>
+            this.elementTreeNode(child, { kind: 'group', groupId: element.id }, childIndex),
+          )
         : interactionNodes,
     };
+  }
+
+  private canDropProjectTreeNode(
+    dragData: ProjectTreeDragData,
+    node: ProjectTreeNode,
+  ): boolean {
+    if (dragData.value === node.value || node.kind === 'interaction') {
+      return false;
+    }
+
+    if (dragData.kind === 'layer') {
+      return node.kind === 'layer';
+    }
+
+    if (node.kind === 'layer') {
+      return true;
+    }
+
+    if (isGroupElement(node.element)) {
+      return dragData.elementId !== node.element.id;
+    }
+
+    return true;
+  }
+
+  private projectTreeDropPosition(
+    event: DragEvent,
+    node: ProjectTreeNode,
+  ): ProjectTreeDropPosition {
+    if (node.kind === 'layer' && this.projectTreeDragData?.kind === 'element') {
+      return 'inside';
+    }
+
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const offset = event.clientY - rect.top;
+    if (node.kind === 'element' && isGroupElement(node.element)) {
+      if (offset < rect.height / 3) {
+        return 'above';
+      }
+      if (offset > (rect.height * 2) / 3) {
+        return 'below';
+      }
+      return 'inside';
+    }
+
+    return offset > rect.height / 2 ? 'below' : 'above';
+  }
+
+  private projectTreeElementDropTarget(
+    node: Exclude<ProjectTreeNode, { kind: 'interaction' }>,
+    position: ProjectTreeDropPosition,
+  ): { container: ElementContainer; index: number } {
+    if (node.kind === 'layer') {
+      return { container: { kind: 'layer', layerId: node.layer.id }, index: node.layer.elements.length };
+    }
+
+    if (position === 'inside' && isGroupElement(node.element)) {
+      return { container: { kind: 'group', groupId: node.element.id }, index: node.element.elements.length };
+    }
+
+    return {
+      container: node.container,
+      index: position === 'below' ? node.index + 1 : node.index,
+    };
+  }
+
+  private adjustSameContainerIndex(sourceIndex: number, targetIndex: number): number {
+    return sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+  }
+
+  private clearProjectTreeDrag(): void {
+    this.projectTreeDragData = null;
+    this.projectTreeDropTarget.set(null);
+    this.isProjectTreeLayerDragActive.set(false);
   }
 
   toggleLayerLocked(layer: Layer, locked: boolean): void {
@@ -759,4 +980,14 @@ export class App {
       isGroupElement(element) ? [element, ...this.flattenElements(element.elements)] : [element],
     );
   }
+}
+
+function containersEqual(first: ElementContainer, second: ElementContainer): boolean {
+  if (first.kind === 'layer' && second.kind === 'layer') {
+    return first.layerId === second.layerId;
+  }
+  if (first.kind === 'group' && second.kind === 'group') {
+    return first.groupId === second.groupId;
+  }
+  return false;
 }
