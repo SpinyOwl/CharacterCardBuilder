@@ -96,6 +96,14 @@ CharacterCardBuilder is a standalone Angular 21 application for building layered
 npm test -- --run
 npm run build
 npm start
+npm run deploy:cloudflare
 ```
 
 Use `npm test -- --run` and `npm run build` before committing behavior or template changes.
+
+## Deployment
+
+- `wrangler.toml` configures Cloudflare Pages direct upload for project `character-card-builder`.
+- `public/_redirects` provides the Pages SPA fallback.
+- `CLOUDFLARE_DEPLOYMENT.md` documents deployment to `character-card-builder.spinyowl.com`.
+- Cloudflare upload command is wrapped by `npm run deploy:cloudflare`.

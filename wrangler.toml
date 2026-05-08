@@ -1,0 +1,4 @@
+"$schema" = "https://unpkg.com/wrangler@latest/config-schema.json"
+name = "character-card-builder"
+pages_build_output_dir = "dist/character-card-builder/browser"
+compatibility_date = "2026-05-08"
