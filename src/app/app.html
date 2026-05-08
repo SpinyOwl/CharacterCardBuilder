@@ -126,6 +126,19 @@
       <div ngToolbarWidgetGroup class="mode-tool-group" aria-label="Editor mode">
         <button
           ngToolbarWidget
+          value="toggle-sticky"
+          type="button"
+          class="toolbar-icon-button"
+          [class.active]="isStickyEnabled()"
+          [title]="isStickyEnabled() ? 'Disable sticky points' : 'Enable sticky points'"
+          [attr.aria-label]="isStickyEnabled() ? 'Disable sticky points' : 'Enable sticky points'"
+          [attr.aria-pressed]="isStickyEnabled()"
+          (click)="toggleSticky()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">join_inner</span>
+        </button>
+        <button
+          ngToolbarWidget
           value="toggle-mode"
           type="button"
           class="toolbar-icon-button"
@@ -347,7 +360,10 @@
       </section>
     </aside>
 
-    <app-canvas-stage (projectChanged)="refreshYaml()" />
+    <app-canvas-stage
+      [stickyPointsEnabled]="isStickyEnabled()"
+      (projectChanged)="refreshYaml()"
+    />
 
     <aside class="panel right-panel">
       <section class="panel-section">
@@ -472,7 +488,7 @@
                       @case ('rotation') {
                         <div class="field-grid">
                           <label>
-                            Pivot X
+                            Local pivot X
                             <input
                               type="number"
                               [ngModel]="interaction.pivotX"
@@ -482,7 +498,7 @@
                             />
                           </label>
                           <label>
-                            Pivot Y
+                            Local pivot Y
                             <input
                               type="number"
                               [ngModel]="interaction.pivotY"
@@ -496,7 +512,7 @@
                       @case ('slide') {
                         <div class="field-grid">
                           <label>
-                            Start X
+                            Local start X
                             <input
                               type="number"
                               [ngModel]="interaction.startX"
@@ -506,7 +522,7 @@
                             />
                           </label>
                           <label>
-                            Start Y
+                            Local start Y
                             <input
                               type="number"
                               [ngModel]="interaction.startY"
@@ -516,7 +532,7 @@
                             />
                           </label>
                           <label>
-                            End X
+                            Local end X
                             <input
                               type="number"
                               [ngModel]="interaction.endX"
@@ -526,7 +542,7 @@
                             />
                           </label>
                           <label>
-                            End Y
+                            Local end Y
                             <input
                               type="number"
                               [ngModel]="interaction.endY"

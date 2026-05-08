@@ -297,12 +297,16 @@ export class ProjectStateService {
       return;
     }
 
+    const pivot = elementLocalPointToWorld(found.element, {
+      x: interaction.pivotX,
+      y: interaction.pivotY,
+    });
     const radians = (deltaDegrees * Math.PI) / 180;
-    const dx = found.element.x - interaction.pivotX;
-    const dy = found.element.y - interaction.pivotY;
+    const dx = found.element.x - pivot.x;
+    const dy = found.element.y - pivot.y;
     this.updateElement(elementId, {
-      x: interaction.pivotX + dx * Math.cos(radians) - dy * Math.sin(radians),
-      y: interaction.pivotY + dx * Math.sin(radians) + dy * Math.cos(radians),
+      x: pivot.x + dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: pivot.y + dx * Math.sin(radians) + dy * Math.cos(radians),
       rotation: normalizeRotation(found.element.rotation + deltaDegrees),
     } as Partial<DesignElement>);
   }
@@ -330,8 +334,16 @@ export class ProjectStateService {
       return;
     }
 
-    const axisX = interaction.endX - interaction.startX;
-    const axisY = interaction.endY - interaction.startY;
+    const start = elementLocalPointToWorld(found.element, {
+      x: interaction.startX,
+      y: interaction.startY,
+    });
+    const end = elementLocalPointToWorld(found.element, {
+      x: interaction.endX,
+      y: interaction.endY,
+    });
+    const axisX = end.x - start.x;
+    const axisY = end.y - start.y;
     const axisLength = Math.hypot(axisX, axisY);
     if (axisLength === 0) {
       return;
@@ -496,6 +508,17 @@ export function canEditElement(layer: Layer, element: DesignElement): boolean {
 function isLockControlPatch(patch: Partial<DesignElement>): boolean {
   const editableWhileLocked = new Set<keyof DesignElement>(['locked', 'visible']);
   return Object.keys(patch).every((key) => editableWhileLocked.has(key as keyof DesignElement));
+}
+
+function elementLocalPointToWorld(element: DesignElement, point: { x: number; y: number }): {
+  x: number;
+  y: number;
+} {
+  const radians = (element.rotation * Math.PI) / 180;
+  return {
+    x: element.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
+    y: element.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
+  };
 }
 
 function updateElementInList(

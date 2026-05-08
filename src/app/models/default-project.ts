@@ -57,8 +57,8 @@ export function createDefaultProject(): Project {
                 type: 'rotation',
                 name: 'Rotation point',
                 visible: true,
-                pivotX: 135,
-                pivotY: 56,
+                pivotX: 0,
+                pivotY: 0,
               },
             ],
             labels: [

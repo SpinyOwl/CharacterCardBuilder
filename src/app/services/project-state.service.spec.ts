@@ -49,7 +49,7 @@ describe('ProjectStateService', () => {
           type: 'slide',
           name: 'Slide axis',
           visible: true,
-          startX: 0,
+          startX: -10,
           startY: 0,
           endX: 10,
           endY: 0,

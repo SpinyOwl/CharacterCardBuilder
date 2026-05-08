@@ -343,14 +343,14 @@
                       class="interaction-guide"
                       [attr.x1]="elementCenter(element).x"
                       [attr.y1]="elementCenter(element).y"
-                      [attr.x2]="interaction.pivotX"
-                      [attr.y2]="interaction.pivotY"
+                      [attr.x2]="interactionPointToWorld(element, interaction, 'pivot').x"
+                      [attr.y2]="interactionPointToWorld(element, interaction, 'pivot').y"
                     />
                     <circle
                       class="interaction-point"
                       [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interaction.pivotX"
-                      [attr.cy]="interaction.pivotY"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'pivot').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'pivot').y"
                       r="1.8"
                       (pointerdown)="
                         onInteractionPointPointerDown($event, element, interaction, 'pivot')
@@ -360,16 +360,16 @@
                   @case ('slide') {
                     <line
                       class="interaction-guide"
-                      [attr.x1]="interaction.startX"
-                      [attr.y1]="interaction.startY"
-                      [attr.x2]="interaction.endX"
-                      [attr.y2]="interaction.endY"
+                      [attr.x1]="interactionPointToWorld(element, interaction, 'start').x"
+                      [attr.y1]="interactionPointToWorld(element, interaction, 'start').y"
+                      [attr.x2]="interactionPointToWorld(element, interaction, 'end').x"
+                      [attr.y2]="interactionPointToWorld(element, interaction, 'end').y"
                     />
                     <circle
                       class="interaction-point"
                       [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interaction.startX"
-                      [attr.cy]="interaction.startY"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'start').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'start').y"
                       r="1.2"
                       (pointerdown)="
                         onInteractionPointPointerDown($event, element, interaction, 'start')
@@ -378,8 +378,8 @@
                     <circle
                       class="interaction-point"
                       [class.interaction-point-editable]="state.mode() === 'edit'"
-                      [attr.cx]="interaction.endX"
-                      [attr.cy]="interaction.endY"
+                      [attr.cx]="interactionPointToWorld(element, interaction, 'end').x"
+                      [attr.cy]="interactionPointToWorld(element, interaction, 'end').y"
                       r="1.2"
                       (pointerdown)="
                         onInteractionPointPointerDown($event, element, interaction, 'end')

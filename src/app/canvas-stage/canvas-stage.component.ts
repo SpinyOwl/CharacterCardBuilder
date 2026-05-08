@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, ViewChild, inject, output } from '@angular/core';
+import { Component, ElementRef, Input, ViewChild, inject, output } from '@angular/core';
 import {
   DesignElement,
   GearElement,
@@ -56,6 +56,7 @@ interface RenderSegment {
   styleUrl: './canvas-stage.component.css',
 })
 export class CanvasStageComponent {
+  @Input() stickyPointsEnabled = false;
   @ViewChild('scene', { static: false }) private readonly scene?: ElementRef<SVGSVGElement>;
 
   readonly projectChanged = output<void>();
@@ -144,8 +145,7 @@ export class CanvasStageComponent {
         elementId: element.id,
         interactionId: interaction.id,
         lastAngle: this.pointerAngleFromPoint(event, {
-          x: interaction.pivotX,
-          y: interaction.pivotY,
+          ...this.interactionPointToWorld(element, interaction, 'pivot'),
         }),
       };
       return;
@@ -229,8 +229,7 @@ export class CanvasStageComponent {
         return;
       }
       const angle = this.pointerAngleFromPoint(event, {
-        x: interaction.pivotX,
-        y: interaction.pivotY,
+        ...this.interactionPointToWorld(found.element, interaction, 'pivot'),
       });
       this.state.rotateElementAroundPivotInViewMode(
         this.dragState.elementId,
@@ -375,6 +374,24 @@ export class CanvasStageComponent {
         return { x: element.x + (minX + maxX) / 2, y: element.y + (minY + maxY) / 2 };
       }
     }
+  }
+
+  interactionPointToWorld(
+    element: ShapeElement,
+    interaction: ShapeInteraction,
+    point: 'pivot' | 'start' | 'end',
+  ): Point {
+    if (interaction.type === 'rotation') {
+      return this.elementLocalPointToWorld(element, {
+        x: interaction.pivotX,
+        y: interaction.pivotY,
+      });
+    }
+
+    return this.elementLocalPointToWorld(element, {
+      x: point === 'start' ? interaction.startX : interaction.endX,
+      y: point === 'start' ? interaction.startY : interaction.endY,
+    });
   }
 
   labelTransform(gear: GearElement, label: GearLabel): string {
@@ -554,6 +571,154 @@ export class CanvasStageComponent {
     };
   }
 
+  private elementLocalPointToWorld(element: DesignElement, point: Point): Point {
+    const radians = (element.rotation * Math.PI) / 180;
+    return {
+      x: element.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
+      y: element.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
+    };
+  }
+
+  private worldPointToElementLocal(element: DesignElement, point: Point): Point {
+    const radians = (-element.rotation * Math.PI) / 180;
+    const dx = point.x - element.x;
+    const dy = point.y - element.y;
+    return {
+      x: dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: dx * Math.sin(radians) + dy * Math.cos(radians),
+    };
+  }
+
+  private snapPoint(point: Point): Point {
+    if (!this.stickyPointsEnabled) {
+      return point;
+    }
+
+    const snapDistance = 3;
+    const candidates = this.state
+      .visibleLayers()
+      .flatMap((layer) => this.allElements(layer.elements))
+      .filter((element): element is ShapeElement => isShapeElement(element) && element.visible)
+      .flatMap((element) => this.shapeSnapPoints(element));
+    const nearest = candidates
+      .map((candidate) => ({
+        point: candidate,
+        distance: Math.hypot(candidate.x - point.x, candidate.y - point.y),
+      }))
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    return nearest && nearest.distance <= snapDistance ? nearest.point : point;
+  }
+
+  private shapeSnapPoints(element: ShapeElement): Point[] {
+    switch (element.type) {
+      case 'rectangle':
+        return this.rectangleSnapPoints(element);
+      case 'triangle':
+        return this.transformedBoxSnapPoints(element, element.width, element.height);
+      case 'circle':
+        return this.radialSnapPoints(element.x, element.y, element.radius);
+      case 'gear':
+        return this.radialSnapPoints(element.x, element.y, element.discRadius + element.toothHeight);
+      case 'polygon':
+        return this.polygonSnapPoints(element);
+    }
+  }
+
+  private rectangleSnapPoints(element: RectangleElement): Point[] {
+    const center = { x: element.x + element.width / 2, y: element.y + element.height / 2 };
+    const points = [
+      { x: 0, y: 0 },
+      { x: element.width / 2, y: 0 },
+      { x: element.width, y: 0 },
+      { x: element.width, y: element.height / 2 },
+      { x: element.width, y: element.height },
+      { x: element.width / 2, y: element.height },
+      { x: 0, y: element.height },
+      { x: 0, y: element.height / 2 },
+      { x: element.width / 2, y: element.height / 2 },
+    ];
+
+    return points.map((point) =>
+      this.rotatePoint(
+        { x: element.x + point.x, y: element.y + point.y },
+        center,
+        element.rotation,
+      ),
+    );
+  }
+
+  private transformedBoxSnapPoints(
+    element: ShapeElement & { width: number; height: number },
+    width: number,
+    height: number,
+  ): Point[] {
+    return [
+      { x: 0, y: 0 },
+      { x: width / 2, y: 0 },
+      { x: width, y: 0 },
+      { x: width, y: height / 2 },
+      { x: width, y: height },
+      { x: width / 2, y: height },
+      { x: 0, y: height },
+      { x: 0, y: height / 2 },
+      { x: width / 2, y: height / 2 },
+    ].map((point) =>
+      this.rotatePoint(
+        { x: element.x + point.x, y: element.y + point.y },
+        { x: element.x, y: element.y },
+        element.rotation,
+      ),
+    );
+  }
+
+  private radialSnapPoints(x: number, y: number, radius: number): Point[] {
+    return [
+      { x, y },
+      { x, y: y - radius },
+      { x: x + radius, y },
+      { x, y: y + radius },
+      { x: x - radius, y },
+    ];
+  }
+
+  private polygonSnapPoints(element: ShapeElement & { points: Point[] }): Point[] {
+    if (element.points.length === 0) {
+      return [{ x: element.x, y: element.y }];
+    }
+
+    const transformedPoints = element.points.map((point) =>
+      this.rotatePoint(
+        { x: element.x + point.x, y: element.y + point.y },
+        { x: element.x, y: element.y },
+        element.rotation,
+      ),
+    );
+    const minX = Math.min(...transformedPoints.map((point) => point.x));
+    const maxX = Math.max(...transformedPoints.map((point) => point.x));
+    const minY = Math.min(...transformedPoints.map((point) => point.y));
+    const maxY = Math.max(...transformedPoints.map((point) => point.y));
+
+    return [
+      ...transformedPoints,
+      { x: (minX + maxX) / 2, y: (minY + maxY) / 2 },
+      { x: (minX + maxX) / 2, y: minY },
+      { x: maxX, y: (minY + maxY) / 2 },
+      { x: (minX + maxX) / 2, y: maxY },
+      { x: minX, y: (minY + maxY) / 2 },
+    ];
+  }
+
+  private rotatePoint(point: Point, center: Point, rotation: number): Point {
+    const radians = (rotation * Math.PI) / 180;
+    const dx = point.x - center.x;
+    const dy = point.y - center.y;
+    return {
+      x: center.x + dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: center.y + dx * Math.sin(radians) + dy * Math.cos(radians),
+    };
+  }
+
   private pointerAngle(event: PointerEvent, element: DesignElement): number {
     const point = this.pointerToSvgPoint(event);
     return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
@@ -568,9 +733,10 @@ export class CanvasStageComponent {
       return;
     }
 
-    const point = this.pointerToSvgPoint(event);
-    const dx = point.x - dragState.last.x;
-    const dy = point.y - dragState.last.y;
+    const point = this.worldPointToElementLocal(
+      found.element,
+      this.snapPoint(this.pointerToSvgPoint(event)),
+    );
     const interaction = (found.element.interactions ?? []).find(
       (candidate) => candidate.id === dragState.interactionId,
     );
@@ -580,22 +746,22 @@ export class CanvasStageComponent {
 
     if (interaction.type === 'rotation' && dragState.point === 'pivot') {
       this.state.updateElementInteraction(found.element.id, interaction.id, {
-        pivotX: interaction.pivotX + dx,
-        pivotY: interaction.pivotY + dy,
+        pivotX: point.x,
+        pivotY: point.y,
       });
     }
 
     if (interaction.type === 'slide' && dragState.point === 'start') {
       this.state.updateElementInteraction(found.element.id, interaction.id, {
-        startX: interaction.startX + dx,
-        startY: interaction.startY + dy,
+        startX: point.x,
+        startY: point.y,
       });
     }
 
     if (interaction.type === 'slide' && dragState.point === 'end') {
       this.state.updateElementInteraction(found.element.id, interaction.id, {
-        endX: interaction.endX + dx,
-        endY: interaction.endY + dy,
+        endX: point.x,
+        endY: point.y,
       });
     }
 

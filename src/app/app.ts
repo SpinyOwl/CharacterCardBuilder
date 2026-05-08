@@ -98,6 +98,7 @@ export class App {
   readonly isFileMenuOpen = signal(false);
   readonly isImportExportOpen = signal(false);
   readonly isPageSetupOpen = signal(false);
+  readonly isStickyEnabled = signal(false);
   readonly selectedGearLabelId = signal<string | null>(null);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
   readonly paperSizes: PaperSize[] = ['A6', 'A5', 'A4', 'A3', 'Letter'];
@@ -154,6 +155,10 @@ export class App {
 
   setMode(mode: 'edit' | 'view'): void {
     this.state.setMode(mode);
+  }
+
+  toggleSticky(): void {
+    this.isStickyEnabled.update((enabled) => !enabled);
   }
 
   toggleFileMenu(): void {
@@ -350,8 +355,8 @@ export class App {
       type: 'rotation',
       name: 'Rotation point',
       visible: true,
-      pivotX: element.x,
-      pivotY: element.y,
+      pivotX: 0,
+      pivotY: 0,
     };
     this.state.updateElement(element.id, {
       interactions: [...(element.interactions ?? []), interaction],
@@ -365,10 +370,10 @@ export class App {
       type: 'slide',
       name: 'Slide axis',
       visible: true,
-      startX: element.x - 20,
-      startY: element.y,
-      endX: element.x + 20,
-      endY: element.y,
+      startX: -20,
+      startY: 0,
+      endX: 20,
+      endY: 0,
     };
     this.state.updateElement(element.id, {
       interactions: [...(element.interactions ?? []), interaction],
