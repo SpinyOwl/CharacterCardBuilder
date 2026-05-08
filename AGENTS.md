@@ -76,7 +76,8 @@ If either command cannot run, state the blocker in the final response.
 
 - Cloudflare Pages deployment is configured through `wrangler.toml`.
 - The production build output is `dist/character-card-builder/browser`.
-- Use `npm run deploy:cloudflare` to build and upload with Wrangler.
+- Cloudflare Pages is Git-connected and deploys automatically from pushes to `main`.
+- Cloudflare build command is `npm run build`.
 - The custom domain is `character-card-builder.spinyowl.com`; domain attachment is handled in Cloudflare Pages Custom domains.
 - Do not commit API tokens or account-specific secrets.
 
