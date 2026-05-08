@@ -422,6 +422,26 @@ export class App {
     this.patchSelected({ align } as Partial<DesignElement>);
   }
 
+  updateSelectedInteractionNumber(
+    interaction: 'rotationPoint' | 'slideAxis',
+    coordinate: 'x' | 'y',
+    rawValue: string | number,
+  ): void {
+    const selected = this.state.selectedElement();
+    if (!selected || !isShapeElement(selected)) {
+      return;
+    }
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const current = selected.interaction ?? {};
+    const point = (current[interaction] ?? { x: 0, y: 0 }) as { x: number; y: number };
+    this.patchSelected({
+      interaction: { ...current, [interaction]: { ...point, [coordinate]: value } },
+    } as Partial<DesignElement>);
+  }
+
   selectedGearLabel(gear: GearElement): GearLabel | null {
     const selectedId = this.selectedGearLabelId();
     return gear.labels?.find((label) => label.id === selectedId) ?? gear.labels?.[0] ?? null;

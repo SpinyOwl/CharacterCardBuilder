@@ -115,6 +115,7 @@ function assertElement(value: unknown): DesignElement {
         width: requiredNumber(value['width'], 'Rectangle width'),
         height: requiredNumber(value['height'], 'Rectangle height'),
         radius: typeof value['radius'] === 'number' ? value['radius'] : undefined,
+        interaction: assertInteraction(value['interaction']),
       };
     case 'circle':
       return {
@@ -122,6 +123,7 @@ function assertElement(value: unknown): DesignElement {
         ...assertShapeStyle(value),
         type: 'circle',
         radius: requiredNumber(value['radius'], 'Circle radius'),
+        interaction: assertInteraction(value['interaction']),
       };
     case 'triangle':
       return {
@@ -130,6 +132,7 @@ function assertElement(value: unknown): DesignElement {
         type: 'triangle',
         width: requiredNumber(value['width'], 'Triangle width'),
         height: requiredNumber(value['height'], 'Triangle height'),
+        interaction: assertInteraction(value['interaction']),
       };
     case 'polygon':
       return {
@@ -137,6 +140,7 @@ function assertElement(value: unknown): DesignElement {
         ...assertShapeStyle(value),
         type: 'polygon',
         points: Array.isArray(value['points']) ? value['points'].map(assertPoint) : [],
+        interaction: assertInteraction(value['interaction']),
       };
     case 'text':
       return {
@@ -171,6 +175,7 @@ function assertElement(value: unknown): DesignElement {
         interactive: true,
         currentRotation:
           typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
+        interaction: assertInteraction(value['interaction']),
         labels: Array.isArray(value['labels']) ? value['labels'].map(assertGearLabel) : [],
       };
     case 'group':
@@ -214,6 +219,18 @@ function assertPoint(value: unknown): { x: number; y: number } {
   return {
     x: requiredNumber(value['x'], 'Point x'),
     y: requiredNumber(value['y'], 'Point y'),
+  };
+}
+
+function assertInteraction(
+  value: unknown,
+): { rotationPoint?: { x: number; y: number }; slideAxis?: { x: number; y: number } } | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  return {
+    rotationPoint: isRecord(value['rotationPoint']) ? assertPoint(value['rotationPoint']) : undefined,
+    slideAxis: isRecord(value['slideAxis']) ? assertPoint(value['slideAxis']) : undefined,
   };
 }
 

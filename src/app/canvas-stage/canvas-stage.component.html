@@ -174,8 +174,8 @@
                 [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
                 [attr.transform]="renderTransform(element)"
                 (pointerdown)="
-                  state.mode() === 'view' && isGear(element)
-                    ? onGearViewPointerDown($event, element)
+                  state.mode() === 'view' && isShapeElement(element)
+                    ? onViewPointerDown($event, element)
                     : onElementPointerDown($event, element, layer)
                 "
                 (wheel)="onGearWheel($event, element)"

@@ -47,6 +47,9 @@ export function createDefaultProject(): Project {
             centerDotStroke: '#f6d48b',
             centerDotStrokeWidth: 0.4,
             currentRotation: 0,
+            interaction: {
+              rotationPoint: { x: 0, y: 0 },
+            },
             fill: '#f2c469',
             stroke: '#6e4d19',
             strokeWidth: 1.2,

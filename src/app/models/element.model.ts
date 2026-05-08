@@ -33,28 +33,36 @@ export interface ShapeStyle {
   strokeWidth: number;
   backgroundImage?: string;
 }
+export interface InteractionConfig {
+  rotationPoint?: Point;
+  slideAxis?: Point;
+}
 
 export interface RectangleElement extends BaseElement, ShapeStyle {
   type: 'rectangle';
   width: number;
   height: number;
   radius?: number;
+  interaction?: InteractionConfig;
 }
 
 export interface CircleElement extends BaseElement, ShapeStyle {
   type: 'circle';
   radius: number;
+  interaction?: InteractionConfig;
 }
 
 export interface TriangleElement extends BaseElement, ShapeStyle {
   type: 'triangle';
   width: number;
   height: number;
+  interaction?: InteractionConfig;
 }
 
 export interface PolygonElement extends BaseElement, ShapeStyle {
   type: 'polygon';
   points: Point[];
+  interaction?: InteractionConfig;
 }
 
 export interface TextElement extends BaseElement {
@@ -94,6 +102,7 @@ export interface GearElement extends BaseElement, ShapeStyle {
   interactive: true;
   currentRotation: number;
   labels?: GearLabel[];
+  interaction?: InteractionConfig;
 }
 
 export interface GroupElement extends BaseElement {

@@ -4,6 +4,7 @@ import {
   DesignElement,
   DesignElementType,
   GearElement,
+  Point,
   isGearElement,
   isGroupElement,
 } from '../models/element.model';
@@ -268,6 +269,43 @@ export class ProjectStateService {
     } as Partial<GearElement>);
   }
 
+  rotateElementInViewMode(elementId: string, deltaDegrees: number): void {
+    if (this.mode() !== 'view') {
+      return;
+    }
+    const found = this.findElement(elementId);
+    if (!found || !canEditElement(found.layer, found.element)) {
+      return;
+    }
+    if (isGearElement(found.element)) {
+      this.rotateGearInViewMode(elementId, deltaDegrees);
+      return;
+    }
+    this.updateElement(elementId, {
+      rotation: normalizeRotation(found.element.rotation + deltaDegrees),
+    } as Partial<DesignElement>);
+  }
+
+  slideElementInViewMode(elementId: string, axis: Point, delta: number): void {
+    if (this.mode() !== 'view') {
+      return;
+    }
+    const found = this.findElement(elementId);
+    if (!found || !canEditElement(found.layer, found.element)) {
+      return;
+    }
+    const length = Math.hypot(axis.x, axis.y);
+    if (length < 0.0001) {
+      return;
+    }
+    const ux = axis.x / length;
+    const uy = axis.y / length;
+    this.updateElement(elementId, {
+      x: found.element.x + ux * delta,
+      y: found.element.y + uy * delta,
+    } as Partial<DesignElement>);
+  }
+
   findElement(elementId: string): { layer: Layer; element: DesignElement } | null {
     for (const layer of this.project().layers) {
       const element = findElementInList(layer.elements, elementId);
@@ -345,6 +383,7 @@ export class ProjectStateService {
           strokeWidth: 1,
           interactive: true,
           currentRotation: 0,
+          interaction: { rotationPoint: { x: 0, y: 0 } },
           labels: [],
         };
       case 'text':

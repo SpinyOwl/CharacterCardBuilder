@@ -22,6 +22,7 @@ type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type DragState =
   | { kind: 'move'; elementId: string; last: { x: number; y: number } }
   | { kind: 'rotate'; elementId: string; lastAngle: number }
+  | { kind: 'slide'; elementId: string; last: { x: number; y: number } }
   | {
       kind: 'resize-rectangle';
       elementId: string;
@@ -115,17 +116,22 @@ export class CanvasStageComponent {
     };
   }
 
-  onGearViewPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
+  onViewPointerDown(event: PointerEvent, element: DesignElement): void {
+    if (this.state.mode() !== 'view' || !isShapeElement(element)) {
       return;
     }
-
     event.stopPropagation();
-    this.dragState = {
-      kind: 'rotate',
-      elementId: element.id,
-      lastAngle: this.pointerAngle(event, element),
-    };
+    if (element.interaction?.rotationPoint) {
+      this.dragState = {
+        kind: 'rotate',
+        elementId: element.id,
+        lastAngle: this.pointerAngle(event, element, element.interaction.rotationPoint),
+      };
+      return;
+    }
+    if (element.interaction?.slideAxis) {
+      this.dragState = { kind: 'slide', elementId: element.id, last: this.pointerToSvgPoint(event) };
+    }
   }
 
   onGearWheel(event: WheelEvent, element: DesignElement): void {
@@ -161,14 +167,38 @@ export class CanvasStageComponent {
       return;
     }
 
-    const found = this.state.findElement(this.dragState.elementId);
-    if (!found || !isGearElement(found.element)) {
+    if (this.dragState.kind === 'slide') {
+      const dragState = this.dragState;
+      const found = this.state.findElement(dragState.elementId);
+      if (!found || !isShapeElement(found.element) || !found.element.interaction?.slideAxis) {
+        return;
+      }
+      const point = this.pointerToSvgPoint(event);
+      const dx = point.x - dragState.last.x;
+      const dy = point.y - dragState.last.y;
+      const axis = found.element.interaction.slideAxis;
+      const length = Math.hypot(axis.x, axis.y);
+      if (length > 0.0001) {
+        this.state.slideElementInViewMode(
+          dragState.elementId,
+          axis,
+          (dx * axis.x + dy * axis.y) / length,
+        );
+        this.dragState = { ...dragState, last: point };
+        this.projectChanged.emit();
+      }
       return;
     }
 
-    const angle = this.pointerAngle(event, found.element);
-    this.state.rotateGearInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
-    this.dragState = { ...this.dragState, lastAngle: angle };
+    const dragState = this.dragState;
+    const found = this.state.findElement(dragState.elementId);
+    if (!found || !isShapeElement(found.element) || !found.element.interaction?.rotationPoint) {
+      return;
+    }
+
+    const angle = this.pointerAngle(event, found.element, found.element.interaction.rotationPoint);
+    this.state.rotateElementInViewMode(dragState.elementId, angle - dragState.lastAngle);
+    this.dragState = { ...dragState, lastAngle: angle };
     this.projectChanged.emit();
   }
 
@@ -291,6 +321,9 @@ export class CanvasStageComponent {
 
   isRectangle(element: DesignElement): element is RectangleElement {
     return isRectangleElement(element);
+  }
+  isShapeElement(element: DesignElement): boolean {
+    return isShapeElement(element);
   }
 
   allElements(elements: DesignElement[]): DesignElement[] {
@@ -422,9 +455,30 @@ export class CanvasStageComponent {
     };
   }
 
-  private pointerAngle(event: PointerEvent, element: DesignElement): number {
+  private pointerAngle(event: PointerEvent, element: DesignElement, pivot?: Point): number {
     const point = this.pointerToSvgPoint(event);
-    return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
+    const target = pivot ? this.localPointToWorld(pivot, element) : { x: element.x, y: element.y };
+    return (Math.atan2(point.y - target.y, point.x - target.x) * 180) / Math.PI;
+  }
+
+  private localPointToWorld(point: Point, element: DesignElement): Point {
+    if (isRectangleElement(element)) {
+      const centerX = element.x + element.width / 2;
+      const centerY = element.y + element.height / 2;
+      const radians = (element.rotation * Math.PI) / 180;
+      const dx = point.x - element.width / 2;
+      const dy = point.y - element.height / 2;
+      return {
+        x: centerX + dx * Math.cos(radians) - dy * Math.sin(radians),
+        y: centerY + dx * Math.sin(radians) + dy * Math.cos(radians),
+      };
+    }
+    const rotation = element.rotation + (isGearElement(element) ? element.currentRotation : 0);
+    const radians = (rotation * Math.PI) / 180;
+    return {
+      x: element.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
+      y: element.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
+    };
   }
 
   private findSubtractiveElementAtPointer(

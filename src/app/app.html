@@ -387,6 +387,43 @@
                 />
               </label>
             </fieldset>
+            <fieldset class="inspector-group">
+              <legend>View interactions</legend>
+              <div class="field-grid">
+                <label>
+                  Rotate point X
+                  <input
+                    type="number"
+                    [ngModel]="selected.interaction?.rotationPoint?.x ?? 0"
+                    (ngModelChange)="updateSelectedInteractionNumber('rotationPoint', 'x', $event)"
+                  />
+                </label>
+                <label>
+                  Rotate point Y
+                  <input
+                    type="number"
+                    [ngModel]="selected.interaction?.rotationPoint?.y ?? 0"
+                    (ngModelChange)="updateSelectedInteractionNumber('rotationPoint', 'y', $event)"
+                  />
+                </label>
+                <label>
+                  Slide axis X
+                  <input
+                    type="number"
+                    [ngModel]="selected.interaction?.slideAxis?.x ?? 0"
+                    (ngModelChange)="updateSelectedInteractionNumber('slideAxis', 'x', $event)"
+                  />
+                </label>
+                <label>
+                  Slide axis Y
+                  <input
+                    type="number"
+                    [ngModel]="selected.interaction?.slideAxis?.y ?? 0"
+                    (ngModelChange)="updateSelectedInteractionNumber('slideAxis', 'y', $event)"
+                  />
+                </label>
+              </div>
+            </fieldset>
           }
 
           @switch (selected.type) {
