@@ -418,6 +418,29 @@ export class App {
     this.patchSelected({ mode } as Partial<DesignElement>);
   }
 
+  updateSelectedBoolean(property: 'interactive', value: boolean): void {
+    this.patchSelected({ [property]: value } as Partial<DesignElement>);
+  }
+
+  updateSelectedInteractionPoint(
+    property: 'rotationPoint' | 'slideAxis',
+    axis: 'x' | 'y',
+    rawValue: string | number,
+  ): void {
+    const selected = this.state.selectedElement();
+    if (!selected) {
+      return;
+    }
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const current = selected[property] ?? (property === 'slideAxis' ? { x: 1, y: 0 } : { x: 0, y: 0 });
+    this.patchSelected({
+      [property]: { ...current, [axis]: value },
+    } as Partial<DesignElement>);
+  }
+
   updateSelectedTextAlign(align: 'start' | 'middle' | 'end'): void {
     this.patchSelected({ align } as Partial<DesignElement>);
   }

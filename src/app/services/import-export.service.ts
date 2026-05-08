@@ -105,6 +105,11 @@ function assertElement(value: unknown): DesignElement {
     visible: value['visible'] !== false,
     locked: value['locked'] === true,
     mode: value['mode'] === 'subtractive' ? 'subtractive' : 'additive',
+    interactive: typeof value['interactive'] === 'boolean' ? value['interactive'] : false,
+    currentRotation: typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
+    rotationPoint: isRecord(value['rotationPoint']) ? assertPoint(value['rotationPoint']) : undefined,
+    slideAxis: isRecord(value['slideAxis']) ? assertPoint(value['slideAxis']) : undefined,
+    currentSlide: typeof value['currentSlide'] === 'number' ? value['currentSlide'] : 0,
   } as const;
   switch (value['type']) {
     case 'rectangle':
@@ -168,9 +173,7 @@ function assertElement(value: unknown): DesignElement {
         centerDotStroke:
           typeof value['centerDotStroke'] === 'string' ? value['centerDotStroke'] : '#f6d48b',
         centerDotStrokeWidth: optionalNumber(value['centerDotStrokeWidth'], 0.4),
-        interactive: true,
-        currentRotation:
-          typeof value['currentRotation'] === 'number' ? value['currentRotation'] : 0,
+        interactive: typeof value['interactive'] === 'boolean' ? value['interactive'] : true,
         labels: Array.isArray(value['labels']) ? value['labels'].map(assertGearLabel) : [],
       };
     case 'group':

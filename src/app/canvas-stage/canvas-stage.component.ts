@@ -22,6 +22,7 @@ type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 type DragState =
   | { kind: 'move'; elementId: string; last: { x: number; y: number } }
   | { kind: 'rotate'; elementId: string; lastAngle: number }
+  | { kind: 'slide'; elementId: string; lastProjection: number }
   | {
       kind: 'resize-rectangle';
       elementId: string;
@@ -116,25 +117,35 @@ export class CanvasStageComponent {
   }
 
   onGearViewPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
+    if (this.state.mode() !== 'view') {
       return;
     }
 
     event.stopPropagation();
-    this.dragState = {
-      kind: 'rotate',
-      elementId: element.id,
-      lastAngle: this.pointerAngle(event, element),
-    };
+    if (element.rotationPoint) {
+      this.dragState = {
+        kind: 'rotate',
+        elementId: element.id,
+        lastAngle: this.pointerAngle(event, element),
+      };
+      return;
+    }
+    if (element.slideAxis) {
+      this.dragState = {
+        kind: 'slide',
+        elementId: element.id,
+        lastProjection: this.pointerProjection(event, element),
+      };
+    }
   }
 
   onGearWheel(event: WheelEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isGearElement(element)) {
+    if (this.state.mode() !== 'view' || !element.rotationPoint) {
       return;
     }
 
     event.preventDefault();
-    this.state.rotateGearInViewMode(element.id, event.deltaY > 0 ? 6 : -6);
+    this.state.rotateElementInViewMode(element.id, event.deltaY > 0 ? 6 : -6);
     this.projectChanged.emit();
   }
 
@@ -162,13 +173,18 @@ export class CanvasStageComponent {
     }
 
     const found = this.state.findElement(this.dragState.elementId);
-    if (!found || !isGearElement(found.element)) {
+    if (!found) {
       return;
     }
-
-    const angle = this.pointerAngle(event, found.element);
-    this.state.rotateGearInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
-    this.dragState = { ...this.dragState, lastAngle: angle };
+    if (this.dragState.kind === 'rotate') {
+      const angle = this.pointerAngle(event, found.element);
+      this.state.rotateElementInViewMode(this.dragState.elementId, angle - this.dragState.lastAngle);
+      this.dragState = { ...this.dragState, lastAngle: angle };
+    } else {
+      const projection = this.pointerProjection(event, found.element);
+      this.state.slideElementInViewMode(this.dragState.elementId, projection - this.dragState.lastProjection);
+      this.dragState = { ...this.dragState, lastProjection: projection };
+    }
     this.projectChanged.emit();
   }
 
@@ -225,10 +241,10 @@ export class CanvasStageComponent {
   }
 
   elementTransform(element: DesignElement, includeRuntimeRotation = false): string {
-    const rotation =
-      element.rotation +
-      (includeRuntimeRotation && isGearElement(element) ? element.currentRotation : 0);
-    return `translate(${element.x} ${element.y}) rotate(${rotation})`;
+    const runtimeRotation = includeRuntimeRotation ? (element.currentRotation ?? 0) : 0;
+    const rotation = element.rotation + runtimeRotation;
+    const slide = includeRuntimeRotation ? this.elementSlide(element) : { x: 0, y: 0 };
+    return `translate(${element.x + slide.x} ${element.y + slide.y}) rotate(${rotation})`;
   }
 
   elementPath(element: DesignElement): string {
@@ -424,7 +440,30 @@ export class CanvasStageComponent {
 
   private pointerAngle(event: PointerEvent, element: DesignElement): number {
     const point = this.pointerToSvgPoint(event);
-    return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
+    const pivot = element.rotationPoint
+      ? { x: element.x + element.rotationPoint.x, y: element.y + element.rotationPoint.y }
+      : { x: element.x, y: element.y };
+    return (Math.atan2(point.y - pivot.y, point.x - pivot.x) * 180) / Math.PI;
+  }
+
+  private pointerProjection(event: PointerEvent, element: DesignElement): number {
+    const axis = element.slideAxis ?? { x: 1, y: 0 };
+    const length = Math.hypot(axis.x, axis.y) || 1;
+    const unit = { x: axis.x / length, y: axis.y / length };
+    const point = this.pointerToSvgPoint(event);
+    return point.x * unit.x + point.y * unit.y;
+  }
+
+  private elementSlide(element: DesignElement): Point {
+    const axis = element.slideAxis;
+    if (!axis || !element.currentSlide) {
+      return { x: 0, y: 0 };
+    }
+    const length = Math.hypot(axis.x, axis.y) || 1;
+    return {
+      x: (axis.x / length) * element.currentSlide,
+      y: (axis.y / length) * element.currentSlide,
+    };
   }
 
   private findSubtractiveElementAtPointer(
@@ -489,10 +528,11 @@ export class CanvasStageComponent {
       };
     }
 
-    const rotation = element.rotation + (isGearElement(element) ? element.currentRotation : 0);
+    const rotation = element.rotation + (element.currentRotation ?? 0);
+    const slide = this.elementSlide(element);
     const radians = (-rotation * Math.PI) / 180;
-    const dx = point.x - element.x;
-    const dy = point.y - element.y;
+    const dx = point.x - (element.x + slide.x);
+    const dy = point.y - (element.y + slide.y);
     return {
       x: dx * Math.cos(radians) - dy * Math.sin(radians),
       y: dx * Math.sin(radians) + dy * Math.cos(radians),

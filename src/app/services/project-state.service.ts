@@ -253,19 +253,36 @@ export class ProjectStateService {
     } as Partial<DesignElement>);
   }
 
-  rotateGearInViewMode(elementId: string, deltaDegrees: number): void {
+  rotateElementInViewMode(elementId: string, deltaDegrees: number): void {
     if (this.mode() !== 'view') {
       return;
     }
 
     const found = this.findElement(elementId);
-    if (!found || !canEditElement(found.layer, found.element) || !isGearElement(found.element)) {
+    if (!found || !canEditElement(found.layer, found.element) || !found.element.rotationPoint) {
       return;
     }
 
     this.updateElement(elementId, {
-      currentRotation: normalizeRotation(found.element.currentRotation + deltaDegrees),
-    } as Partial<GearElement>);
+      currentRotation: normalizeRotation((found.element.currentRotation ?? 0) + deltaDegrees),
+    } as Partial<DesignElement>);
+  }
+
+  rotateGearInViewMode(elementId: string, deltaDegrees: number): void {
+    this.rotateElementInViewMode(elementId, deltaDegrees);
+  }
+
+  slideElementInViewMode(elementId: string, delta: number): void {
+    if (this.mode() !== 'view') {
+      return;
+    }
+    const found = this.findElement(elementId);
+    if (!found || !canEditElement(found.layer, found.element) || !found.element.slideAxis) {
+      return;
+    }
+    this.updateElement(elementId, {
+      currentSlide: (found.element.currentSlide ?? 0) + delta,
+    } as Partial<DesignElement>);
   }
 
   findElement(elementId: string): { layer: Layer; element: DesignElement } | null {
@@ -345,6 +362,9 @@ export class ProjectStateService {
           strokeWidth: 1,
           interactive: true,
           currentRotation: 0,
+          rotationPoint: { x: 0, y: 0 },
+          slideAxis: { x: 1, y: 0 },
+          currentSlide: 0,
           labels: [],
         };
       case 'text':

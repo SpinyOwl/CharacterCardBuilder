@@ -47,10 +47,13 @@ export function createDefaultProject(): Project {
             centerDotStroke: '#f6d48b',
             centerDotStrokeWidth: 0.4,
             currentRotation: 0,
+            currentSlide: 0,
             fill: '#f2c469',
             stroke: '#6e4d19',
             strokeWidth: 1.2,
             interactive: true,
+            rotationPoint: { x: 0, y: 0 },
+            slideAxis: { x: 1, y: 0 },
             labels: [
               {
                 id: 'gear-label-1',

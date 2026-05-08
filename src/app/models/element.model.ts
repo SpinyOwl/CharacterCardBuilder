@@ -25,6 +25,11 @@ export interface BaseElement {
   visible: boolean;
   locked: boolean;
   mode: ElementBooleanMode;
+  interactive?: boolean;
+  currentRotation?: number;
+  rotationPoint?: Point;
+  slideAxis?: Point;
+  currentSlide?: number;
 }
 
 export interface ShapeStyle {
@@ -91,8 +96,6 @@ export interface GearElement extends BaseElement, ShapeStyle {
   centerDotFill: string;
   centerDotStroke: string;
   centerDotStrokeWidth: number;
-  interactive: true;
-  currentRotation: number;
   labels?: GearLabel[];
 }
 

@@ -174,7 +174,7 @@
                 [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
                 [attr.transform]="renderTransform(element)"
                 (pointerdown)="
-                  state.mode() === 'view' && isGear(element)
+                  state.mode() === 'view' && element.interactive
                     ? onGearViewPointerDown($event, element)
                     : onElementPointerDown($event, element, layer)
                 "

@@ -387,6 +387,69 @@
                 />
               </label>
             </fieldset>
+            <fieldset class="inspector-group">
+              <legend>View interactions</legend>
+              <label>
+                <input
+                  type="checkbox"
+                  [ngModel]="selected.interactive ?? false"
+                  (ngModelChange)="updateSelectedBoolean('interactive', $event)"
+                />
+                Interactive in view mode
+              </label>
+              <div class="field-grid">
+                <label>
+                  Rotation point X
+                  <input
+                    type="number"
+                    [ngModel]="selected.rotationPoint?.x ?? 0"
+                    (ngModelChange)="updateSelectedInteractionPoint('rotationPoint', 'x', $event)"
+                  />
+                </label>
+                <label>
+                  Rotation point Y
+                  <input
+                    type="number"
+                    [ngModel]="selected.rotationPoint?.y ?? 0"
+                    (ngModelChange)="updateSelectedInteractionPoint('rotationPoint', 'y', $event)"
+                  />
+                </label>
+                <label>
+                  Runtime rotation
+                  <input
+                    type="number"
+                    [ngModel]="selected.currentRotation ?? 0"
+                    (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
+                  />
+                </label>
+              </div>
+              <div class="field-grid">
+                <label>
+                  Slide axis X
+                  <input
+                    type="number"
+                    [ngModel]="selected.slideAxis?.x ?? 1"
+                    (ngModelChange)="updateSelectedInteractionPoint('slideAxis', 'x', $event)"
+                  />
+                </label>
+                <label>
+                  Slide axis Y
+                  <input
+                    type="number"
+                    [ngModel]="selected.slideAxis?.y ?? 0"
+                    (ngModelChange)="updateSelectedInteractionPoint('slideAxis', 'y', $event)"
+                  />
+                </label>
+                <label>
+                  Runtime slide
+                  <input
+                    type="number"
+                    [ngModel]="selected.currentSlide ?? 0"
+                    (ngModelChange)="updateSelectedNumber('currentSlide', $event)"
+                  />
+                </label>
+              </div>
+            </fieldset>
           }
 
           @switch (selected.type) {
