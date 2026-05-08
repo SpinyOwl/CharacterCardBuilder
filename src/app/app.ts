@@ -21,6 +21,7 @@ import { ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
 import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
+import { AppSettingsService, ApplicationTheme } from './services/app-settings.service';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
   A6: { width: 105, height: 148 },
@@ -90,6 +91,7 @@ export class App {
   private readonly canvasStage?: CanvasStageComponent;
 
   readonly state = inject(ProjectStateService);
+  readonly appSettings = inject(AppSettingsService);
   private readonly importExport = inject(ImportExportService);
   private readonly exportService = inject(ExportService);
 
@@ -98,6 +100,7 @@ export class App {
   readonly isFileMenuOpen = signal(false);
   readonly isImportExportOpen = signal(false);
   readonly isPageSetupOpen = signal(false);
+  readonly isSettingsOpen = signal(false);
   readonly isStickyEnabled = signal(false);
   readonly selectedGearLabelId = signal<string | null>(null);
   readonly pageSetupDraft = signal<PageSetup>(this.currentPageSetup());
@@ -215,6 +218,19 @@ export class App {
 
   closePageSetup(): void {
     this.isPageSetupOpen.set(false);
+  }
+
+  openSettings(): void {
+    this.isSettingsOpen.set(true);
+    this.closeFileMenu();
+  }
+
+  closeSettings(): void {
+    this.isSettingsOpen.set(false);
+  }
+
+  updateApplicationTheme(theme: ApplicationTheme): void {
+    this.appSettings.updateTheme(theme);
   }
 
   updatePageSetupDraft<K extends keyof PageSetup>(property: K, value: PageSetup[K]): void {

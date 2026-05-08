@@ -338,6 +338,15 @@
         @for (layer of state.visibleLayers(); track layer.id) {
           @for (element of allElements(layer.elements); track element.id) {
             @if (isSelected(element) && !isGroup(element)) {
+              <g class="selection-box-overlay" [attr.transform]="selectionBoxTransform(element)">
+                <rect
+                  class="selection-box-outline"
+                  x="0"
+                  y="0"
+                  [attr.width]="selectionBox(element).width"
+                  [attr.height]="selectionBox(element).height"
+                />
+              </g>
               @if (isRectangle(element)) {
                 <g class="resize-overlay" [attr.transform]="rectangleTransform(element)">
                   <rect
@@ -360,12 +369,6 @@
                   }
                 </g>
               }
-              <circle
-                class="selection-anchor"
-                [attr.cx]="element.x"
-                [attr.cy]="element.y"
-                r="1.45"
-              />
             }
           }
         }
@@ -380,13 +383,6 @@
               @if (interaction.visible) {
                 @switch (interaction.type) {
                   @case ('rotation') {
-                    <line
-                      class="interaction-guide"
-                      [attr.x1]="elementCenter(element).x"
-                      [attr.y1]="elementCenter(element).y"
-                      [attr.x2]="interactionPointToWorld(element, interaction, 'pivot').x"
-                      [attr.y2]="interactionPointToWorld(element, interaction, 'pivot').y"
-                    />
                     <circle
                       class="interaction-point"
                       [class.interaction-point-editable]="state.mode() === 'edit'"

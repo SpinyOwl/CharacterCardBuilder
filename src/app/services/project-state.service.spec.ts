@@ -34,9 +34,10 @@ describe('ProjectStateService', () => {
     state.rotateElementAroundPivotInViewMode('gear-main', 'gear-rotation', 90);
 
     const updated = state.findElement('gear-main')?.element;
-    expect(updated?.rotation).toBe(90);
     expect(updated?.x).toBe(135);
     expect(updated?.y).toBe(56);
+    expect(updated?.rotation).toBe(0);
+    expect(updated ? state.elementViewTransform(updated).rotation : undefined).toBe(90);
   });
 
   it('slides a shape along a configured axis in view mode', () => {
@@ -60,7 +61,19 @@ describe('ProjectStateService', () => {
     state.slideElementAlongAxisInViewMode('card-body', 'card-slide', 7, 5);
 
     const updated = state.findElement('card-body')?.element;
-    expect(updated).toMatchObject({ x: 52, y: 34 });
+    expect(updated).toMatchObject({ x: 45, y: 34 });
+    expect(updated ? state.elementViewTransform(updated) : null).toMatchObject({ x: 52, y: 34 });
+  });
+
+  it('clears transient view transforms when returning to edit mode', () => {
+    const state = new ProjectStateService();
+
+    state.setMode('view');
+    state.rotateElementAroundPivotInViewMode('gear-main', 'gear-rotation', 90);
+    state.setMode('edit');
+
+    const gear = state.findElement('gear-main')?.element;
+    expect(gear ? state.elementViewTransform(gear).rotation : undefined).toBe(0);
   });
 
   it('hidden layers are not selectable', () => {

@@ -1,4 +1,4 @@
-<main class="app-shell">
+<main class="app-shell" [class.dark-theme]="appSettings.theme() === 'dark'">
   <header class="topbar">
     <div ngMenuBar class="menubar" aria-label="Application menu">
       <div class="menu-root">
@@ -22,6 +22,7 @@
               Import/export
             </button>
             <button type="button" role="menuitem" (click)="openPageSetup()">Page setup</button>
+            <button type="button" role="menuitem" (click)="openSettings()">Settings</button>
           </div>
         }
       </div>
@@ -906,6 +907,45 @@
             Download YAML
           </button>
         </div>
+      </section>
+    </div>
+  }
+
+  @if (isSettingsOpen()) {
+    <div class="dialog-backdrop" role="presentation" (click)="closeSettings()">
+      <section
+        class="app-settings-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="app-settings-title"
+        (click)="$event.stopPropagation()"
+      >
+        <header class="dialog-header">
+          <h2 id="app-settings-title">Settings</h2>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Close settings"
+            (click)="closeSettings()"
+          >
+            x
+          </button>
+        </header>
+
+        <label>
+          Theme
+          <select
+            [ngModel]="appSettings.theme()"
+            (ngModelChange)="updateApplicationTheme($event)"
+          >
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+
+        <footer class="dialog-actions">
+          <button type="button" class="primary-button" (click)="closeSettings()">Done</button>
+        </footer>
       </section>
     </div>
   }

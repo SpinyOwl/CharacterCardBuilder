@@ -19,12 +19,19 @@ export type ElementContainer =
   | { kind: 'layer'; layerId: string }
   | { kind: 'group'; groupId: string };
 
+export interface ElementViewTransform {
+  x: number;
+  y: number;
+  rotation: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProjectStateService {
   readonly project = signal<Project>(createDefaultProject());
   readonly mode = signal<AppMode>('edit');
   readonly selectedElementId = signal<string | null>(null);
   readonly selectedLayerId = signal<string | null>('layer-top-card');
+  readonly viewTransforms = signal<Record<string, ElementViewTransform>>({});
 
   readonly visibleLayers = computed(() => this.project().layers.filter((layer) => layer.visible));
   readonly selectedLayer = computed(() => {
@@ -41,13 +48,29 @@ export class ProjectStateService {
     this.project.set(project);
     this.selectedLayerId.set(project.layers[0]?.id ?? null);
     this.selectedElementId.set(null);
+    this.viewTransforms.set({});
   }
 
   setMode(mode: AppMode): void {
     this.mode.set(mode);
     if (mode === 'view') {
       this.selectedElementId.set(null);
+      this.viewTransforms.set({});
     }
+
+    if (mode === 'edit') {
+      this.viewTransforms.set({});
+    }
+  }
+
+  elementViewTransform(element: DesignElement): ElementViewTransform {
+    return (
+      this.viewTransforms()[element.id] ?? {
+        x: element.x,
+        y: element.y,
+        rotation: element.rotation,
+      }
+    );
   }
 
   selectLayer(layerId: string | null): void {
@@ -297,18 +320,19 @@ export class ProjectStateService {
       return;
     }
 
-    const pivot = elementLocalPointToWorld(found.element, {
+    const current = this.elementViewTransform(found.element);
+    const pivot = elementLocalPointToWorld(current, {
       x: interaction.pivotX,
       y: interaction.pivotY,
     });
     const radians = (deltaDegrees * Math.PI) / 180;
-    const dx = found.element.x - pivot.x;
-    const dy = found.element.y - pivot.y;
-    this.updateElement(elementId, {
+    const dx = current.x - pivot.x;
+    const dy = current.y - pivot.y;
+    this.updateViewTransform(elementId, {
       x: pivot.x + dx * Math.cos(radians) - dy * Math.sin(radians),
       y: pivot.y + dx * Math.sin(radians) + dy * Math.cos(radians),
-      rotation: normalizeRotation(found.element.rotation + deltaDegrees),
-    } as Partial<DesignElement>);
+      rotation: normalizeRotation(current.rotation + deltaDegrees),
+    });
   }
 
   slideElementAlongAxisInViewMode(
@@ -334,11 +358,12 @@ export class ProjectStateService {
       return;
     }
 
-    const start = elementLocalPointToWorld(found.element, {
+    const current = this.elementViewTransform(found.element);
+    const start = elementLocalPointToWorld(current, {
       x: interaction.startX,
       y: interaction.startY,
     });
-    const end = elementLocalPointToWorld(found.element, {
+    const end = elementLocalPointToWorld(current, {
       x: interaction.endX,
       y: interaction.endY,
     });
@@ -350,10 +375,11 @@ export class ProjectStateService {
     }
 
     const projectedDistance = (dx * axisX + dy * axisY) / axisLength;
-    this.updateElement(elementId, {
-      x: found.element.x + (axisX / axisLength) * projectedDistance,
-      y: found.element.y + (axisY / axisLength) * projectedDistance,
-    } as Partial<DesignElement>);
+    this.updateViewTransform(elementId, {
+      ...current,
+      x: current.x + (axisX / axisLength) * projectedDistance,
+      y: current.y + (axisY / axisLength) * projectedDistance,
+    });
   }
 
   rotateGearInViewMode(elementId: string, deltaDegrees: number): void {
@@ -491,6 +517,13 @@ export class ProjectStateService {
   private createId(prefix: string): string {
     return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
   }
+
+  private updateViewTransform(elementId: string, transform: ElementViewTransform): void {
+    this.viewTransforms.update((transforms) => ({
+      ...transforms,
+      [elementId]: transform,
+    }));
+  }
 }
 
 export function getSelectableElements(project: Project): DesignElement[] {
@@ -510,14 +543,17 @@ function isLockControlPatch(patch: Partial<DesignElement>): boolean {
   return Object.keys(patch).every((key) => editableWhileLocked.has(key as keyof DesignElement));
 }
 
-function elementLocalPointToWorld(element: DesignElement, point: { x: number; y: number }): {
+function elementLocalPointToWorld(
+  transform: ElementViewTransform,
+  point: { x: number; y: number },
+): {
   x: number;
   y: number;
 } {
-  const radians = (element.rotation * Math.PI) / 180;
+  const radians = (transform.rotation * Math.PI) / 180;
   return {
-    x: element.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
-    y: element.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
+    x: transform.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
+    y: transform.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
   };
 }
 

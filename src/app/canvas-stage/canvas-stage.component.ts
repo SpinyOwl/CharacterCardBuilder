@@ -48,6 +48,14 @@ interface RenderSegment {
   subtractiveElements: DesignElement[];
 }
 
+interface SelectionBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
 @Component({
   selector: 'app-canvas-stage',
   standalone: true,
@@ -320,10 +328,11 @@ export class CanvasStageComponent {
   }
 
   elementTransform(element: DesignElement, includeRuntimeRotation = false): string {
+    const viewTransform = this.state.elementViewTransform(element);
     const rotation =
-      element.rotation +
+      viewTransform.rotation +
       (includeRuntimeRotation && isGearElement(element) ? element.currentRotation : 0);
-    return `translate(${element.x} ${element.y}) rotate(${rotation})`;
+    return `translate(${viewTransform.x} ${viewTransform.y}) rotate(${rotation})`;
   }
 
   elementPath(element: DesignElement): string {
@@ -344,7 +353,8 @@ export class CanvasStageComponent {
   }
 
   rectangleTransform(element: RectangleElement): string {
-    return `translate(${element.x + element.width / 2} ${element.y + element.height / 2}) rotate(${element.rotation}) translate(${-element.width / 2} ${-element.height / 2})`;
+    const viewTransform = this.state.elementViewTransform(element);
+    return `translate(${viewTransform.x + element.width / 2} ${viewTransform.y + element.height / 2}) rotate(${viewTransform.rotation}) translate(${-element.width / 2} ${-element.height / 2})`;
   }
 
   renderTransform(element: DesignElement): string {
@@ -353,25 +363,97 @@ export class CanvasStageComponent {
       : this.elementTransform(element, true);
   }
 
+  selectionBoxTransform(element: DesignElement): string {
+    const box = this.selectionBox(element);
+    return `translate(${box.x} ${box.y}) rotate(${box.rotation})`;
+  }
+
+  selectionBox(element: DesignElement): SelectionBox {
+    switch (element.type) {
+      case 'rectangle':
+        return {
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          rotation: element.rotation,
+        };
+      case 'triangle':
+        return {
+          x: element.x,
+          y: element.y,
+          width: element.width,
+          height: element.height,
+          rotation: element.rotation,
+        };
+      case 'circle':
+        return {
+          x: element.x - element.radius,
+          y: element.y - element.radius,
+          width: element.radius * 2,
+          height: element.radius * 2,
+          rotation: element.rotation,
+        };
+      case 'gear': {
+        const radius = element.discRadius + element.toothHeight;
+        return {
+          x: element.x - radius,
+          y: element.y - radius,
+          width: radius * 2,
+          height: radius * 2,
+          rotation: element.rotation + element.currentRotation,
+        };
+      }
+      case 'polygon': {
+        const points = element.points.length > 0 ? element.points : [{ x: 0, y: 0 }];
+        const minX = Math.min(...points.map((point) => point.x));
+        const minY = Math.min(...points.map((point) => point.y));
+        const maxX = Math.max(...points.map((point) => point.x));
+        const maxY = Math.max(...points.map((point) => point.y));
+        return {
+          x: element.x + minX,
+          y: element.y + minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          rotation: element.rotation,
+        };
+      }
+      case 'text':
+        return {
+          x: element.x,
+          y: element.y - element.fontSize,
+          width: element.text.length * element.fontSize * 0.55,
+          height: element.fontSize,
+          rotation: element.rotation,
+        };
+      case 'group':
+        return { x: element.x, y: element.y, width: 0, height: 0, rotation: element.rotation };
+    }
+  }
+
   elementCenter(element: DesignElement): Point {
+    const viewTransform = this.state.elementViewTransform(element);
     switch (element.type) {
       case 'rectangle':
       case 'triangle':
-        return { x: element.x + element.width / 2, y: element.y + element.height / 2 };
+        return { x: viewTransform.x + element.width / 2, y: viewTransform.y + element.height / 2 };
       case 'circle':
       case 'gear':
       case 'text':
       case 'group':
-        return { x: element.x, y: element.y };
+        return { x: viewTransform.x, y: viewTransform.y };
       case 'polygon': {
         if (element.points.length === 0) {
-          return { x: element.x, y: element.y };
+          return { x: viewTransform.x, y: viewTransform.y };
         }
         const minX = Math.min(...element.points.map((point) => point.x));
         const maxX = Math.max(...element.points.map((point) => point.x));
         const minY = Math.min(...element.points.map((point) => point.y));
         const maxY = Math.max(...element.points.map((point) => point.y));
-        return { x: element.x + (minX + maxX) / 2, y: element.y + (minY + maxY) / 2 };
+        return {
+          x: viewTransform.x + (minX + maxX) / 2,
+          y: viewTransform.y + (minY + maxY) / 2,
+        };
       }
     }
   }
@@ -572,17 +654,19 @@ export class CanvasStageComponent {
   }
 
   private elementLocalPointToWorld(element: DesignElement, point: Point): Point {
-    const radians = (element.rotation * Math.PI) / 180;
+    const viewTransform = this.state.elementViewTransform(element);
+    const radians = (viewTransform.rotation * Math.PI) / 180;
     return {
-      x: element.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
-      y: element.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
+      x: viewTransform.x + point.x * Math.cos(radians) - point.y * Math.sin(radians),
+      y: viewTransform.y + point.x * Math.sin(radians) + point.y * Math.cos(radians),
     };
   }
 
   private worldPointToElementLocal(element: DesignElement, point: Point): Point {
-    const radians = (-element.rotation * Math.PI) / 180;
-    const dx = point.x - element.x;
-    const dy = point.y - element.y;
+    const viewTransform = this.state.elementViewTransform(element);
+    const radians = (-viewTransform.rotation * Math.PI) / 180;
+    const dx = point.x - viewTransform.x;
+    const dy = point.y - viewTransform.y;
     return {
       x: dx * Math.cos(radians) - dy * Math.sin(radians),
       y: dx * Math.sin(radians) + dy * Math.cos(radians),
@@ -615,11 +699,11 @@ export class CanvasStageComponent {
       case 'rectangle':
         return this.rectangleSnapPoints(element);
       case 'triangle':
-        return this.transformedBoxSnapPoints(element, element.width, element.height);
+        return this.triangleSnapPoints(element);
       case 'circle':
-        return this.radialSnapPoints(element.x, element.y, element.radius);
+        return this.circularSnapPoints(element.x, element.y, element.radius);
       case 'gear':
-        return this.radialSnapPoints(element.x, element.y, element.discRadius + element.toothHeight);
+        return this.gearSnapPoints(element);
       case 'polygon':
         return this.polygonSnapPoints(element);
     }
@@ -648,22 +732,22 @@ export class CanvasStageComponent {
     );
   }
 
-  private transformedBoxSnapPoints(
-    element: ShapeElement & { width: number; height: number },
-    width: number,
-    height: number,
-  ): Point[] {
-    return [
-      { x: 0, y: 0 },
-      { x: width / 2, y: 0 },
-      { x: width, y: 0 },
-      { x: width, y: height / 2 },
-      { x: width, y: height },
-      { x: width / 2, y: height },
-      { x: 0, y: height },
-      { x: 0, y: height / 2 },
-      { x: width / 2, y: height / 2 },
-    ].map((point) =>
+  private triangleSnapPoints(element: ShapeElement & { width: number; height: number }): Point[] {
+    const vertices = [
+      { x: element.width / 2, y: 0 },
+      { x: element.width, y: element.height },
+      { x: 0, y: element.height },
+    ];
+    const edgeCenters = vertices.map((point, index) => {
+      const next = vertices[(index + 1) % vertices.length];
+      return { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 };
+    });
+    const center = {
+      x: vertices.reduce((sum, point) => sum + point.x, 0) / vertices.length,
+      y: vertices.reduce((sum, point) => sum + point.y, 0) / vertices.length,
+    };
+
+    return [...vertices, ...edgeCenters, center].map((point) =>
       this.rotatePoint(
         { x: element.x + point.x, y: element.y + point.y },
         { x: element.x, y: element.y },
@@ -672,14 +756,47 @@ export class CanvasStageComponent {
     );
   }
 
-  private radialSnapPoints(x: number, y: number, radius: number): Point[] {
+  private circularSnapPoints(x: number, y: number, radius: number): Point[] {
+    const segments = 24;
     return [
       { x, y },
-      { x, y: y - radius },
-      { x: x + radius, y },
-      { x, y: y + radius },
-      { x: x - radius, y },
+      ...Array.from({ length: segments }, (_, index) => {
+        const angle = (index / segments) * Math.PI * 2;
+        return {
+          x: x + Math.cos(angle) * radius,
+          y: y + Math.sin(angle) * radius,
+        };
+      }),
     ];
+  }
+
+  private gearSnapPoints(element: ShapeElement & {
+    discRadius: number;
+    toothHeight: number;
+    teeth: number;
+  }): Point[] {
+    const safeTeeth = Math.max(3, Math.round(element.teeth));
+    const outerRadius = element.discRadius + element.toothHeight;
+    const points: Point[] = [{ x: element.x, y: element.y }];
+
+    for (let index = 0; index < safeTeeth; index += 1) {
+      const toothAngle = -Math.PI / 2 + (index / safeTeeth) * Math.PI * 2;
+      const valleyAngle = toothAngle + Math.PI / safeTeeth;
+      points.push(
+        {
+          x: element.x + Math.cos(toothAngle) * outerRadius,
+          y: element.y + Math.sin(toothAngle) * outerRadius,
+        },
+        {
+          x: element.x + Math.cos(valleyAngle) * element.discRadius,
+          y: element.y + Math.sin(valleyAngle) * element.discRadius,
+        },
+      );
+    }
+
+    return points.map((point) =>
+      this.rotatePoint(point, { x: element.x, y: element.y }, element.rotation),
+    );
   }
 
   private polygonSnapPoints(element: ShapeElement & { points: Point[] }): Point[] {

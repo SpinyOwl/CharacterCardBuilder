@@ -9,8 +9,8 @@
   place-items: center;
   overflow: auto;
   padding: 18px;
-  border: 1px solid #c4cbc0;
-  background: #d6dcd2;
+  border: 1px solid var(--app-border, #c4cbc0);
+  background: var(--stage-bg, #d6dcd2);
   user-select: none;
   -webkit-user-select: none;
 }
@@ -18,9 +18,9 @@
 .scene {
   width: min(100%, 980px);
   height: auto;
-  border: 1px solid #9aa397;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgba(24, 31, 27, 0.16);
+  border: 1px solid var(--stage-border, #9aa397);
+  background: var(--page-bg, #ffffff);
+  box-shadow: 0 10px 24px var(--stage-shadow, rgba(24, 31, 27, 0.16));
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -97,11 +97,13 @@
   cursor: move;
 }
 
-.resize-overlay {
+.resize-overlay,
+.selection-box-overlay {
   pointer-events: none;
 }
 
-.resize-outline {
+.resize-outline,
+.selection-box-outline {
   fill: none;
   stroke: #d21f3c;
   stroke-width: 0.55;
@@ -114,13 +116,6 @@
   stroke: #d21f3c;
   stroke-width: 0.55;
   pointer-events: all;
-}
-
-.selection-anchor {
-  fill: #d21f3c;
-  stroke: #ffffff;
-  stroke-width: 0.45;
-  pointer-events: none;
 }
 
 @media (max-width: 980px) {
