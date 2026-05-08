@@ -348,9 +348,13 @@
                     />
                     <circle
                       class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
                       [attr.cx]="interaction.pivotX"
                       [attr.cy]="interaction.pivotY"
                       r="1.8"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'pivot')
+                      "
                     />
                   }
                   @case ('slide') {
@@ -363,15 +367,23 @@
                     />
                     <circle
                       class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
                       [attr.cx]="interaction.startX"
                       [attr.cy]="interaction.startY"
                       r="1.2"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'start')
+                      "
                     />
                     <circle
                       class="interaction-point"
+                      [class.interaction-point-editable]="state.mode() === 'edit'"
                       [attr.cx]="interaction.endX"
                       [attr.cy]="interaction.endY"
                       r="1.2"
+                      (pointerdown)="
+                        onInteractionPointPointerDown($event, element, interaction, 'end')
+                      "
                     />
                   }
                 }

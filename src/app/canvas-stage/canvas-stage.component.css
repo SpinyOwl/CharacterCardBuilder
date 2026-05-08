@@ -90,6 +90,11 @@
   stroke-width: 0.7;
 }
 
+.interaction-point-editable {
+  pointer-events: all;
+  cursor: move;
+}
+
 .resize-overlay {
   pointer-events: none;
 }

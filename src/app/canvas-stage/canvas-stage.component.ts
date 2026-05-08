@@ -28,6 +28,13 @@ type DragState =
   | { kind: 'rotate-interaction'; elementId: string; interactionId: string; lastAngle: number }
   | { kind: 'slide-interaction'; elementId: string; interactionId: string; last: Point }
   | {
+      kind: 'move-interaction-point';
+      elementId: string;
+      interactionId: string;
+      point: 'pivot' | 'start' | 'end';
+      last: Point;
+    }
+  | {
       kind: 'resize-rectangle';
       elementId: string;
       handle: ResizeHandle;
@@ -152,6 +159,33 @@ export class CanvasStageComponent {
     };
   }
 
+  onInteractionPointPointerDown(
+    event: PointerEvent,
+    element: ShapeElement,
+    interaction: ShapeInteraction,
+    point: 'pivot' | 'start' | 'end',
+  ): void {
+    event.stopPropagation();
+
+    if (
+      this.state.mode() !== 'edit' ||
+      element.locked ||
+      !element.visible ||
+      !interaction.visible
+    ) {
+      return;
+    }
+
+    this.state.selectElement(element.id);
+    this.dragState = {
+      kind: 'move-interaction-point',
+      elementId: element.id,
+      interactionId: interaction.id,
+      point,
+      last: this.pointerToSvgPoint(event),
+    };
+  }
+
   onSvgPointerMove(event: PointerEvent): void {
     if (!this.dragState) {
       return;
@@ -171,6 +205,12 @@ export class CanvasStageComponent {
 
     if (this.dragState.kind === 'resize-rectangle') {
       this.resizeRectangleFromPointer(event, this.dragState);
+      this.projectChanged.emit();
+      return;
+    }
+
+    if (this.dragState.kind === 'move-interaction-point') {
+      this.moveInteractionPointFromPointer(event, this.dragState);
       this.projectChanged.emit();
       return;
     }
@@ -517,6 +557,49 @@ export class CanvasStageComponent {
   private pointerAngle(event: PointerEvent, element: DesignElement): number {
     const point = this.pointerToSvgPoint(event);
     return (Math.atan2(point.y - element.y, point.x - element.x) * 180) / Math.PI;
+  }
+
+  private moveInteractionPointFromPointer(
+    event: PointerEvent,
+    dragState: Extract<DragState, { kind: 'move-interaction-point' }>,
+  ): void {
+    const found = this.state.findElement(dragState.elementId);
+    if (!found || !isShapeElement(found.element)) {
+      return;
+    }
+
+    const point = this.pointerToSvgPoint(event);
+    const dx = point.x - dragState.last.x;
+    const dy = point.y - dragState.last.y;
+    const interaction = (found.element.interactions ?? []).find(
+      (candidate) => candidate.id === dragState.interactionId,
+    );
+    if (!interaction) {
+      return;
+    }
+
+    if (interaction.type === 'rotation' && dragState.point === 'pivot') {
+      this.state.updateElementInteraction(found.element.id, interaction.id, {
+        pivotX: interaction.pivotX + dx,
+        pivotY: interaction.pivotY + dy,
+      });
+    }
+
+    if (interaction.type === 'slide' && dragState.point === 'start') {
+      this.state.updateElementInteraction(found.element.id, interaction.id, {
+        startX: interaction.startX + dx,
+        startY: interaction.startY + dy,
+      });
+    }
+
+    if (interaction.type === 'slide' && dragState.point === 'end') {
+      this.state.updateElementInteraction(found.element.id, interaction.id, {
+        endX: interaction.endX + dx,
+        endY: interaction.endY + dy,
+      });
+    }
+
+    this.dragState = { ...dragState, last: point };
   }
 
   private pointerAngleFromPoint(event: PointerEvent, point: Point): number {
