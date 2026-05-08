@@ -423,15 +423,17 @@ export class App {
     }
   }
 
-  exportSvg(): void {
+  async exportPdf(): Promise<void> {
     const svg = this.canvasStage?.getSvgElement();
     if (!svg) {
       return;
     }
-    this.exportService.downloadText(
-      'layered-card.svg',
-      this.exportService.serializeSvg(svg),
-      'image/svg+xml',
+    const canvas = this.state.project().canvas;
+    await this.exportService.downloadPdfFromSvg(
+      'layered-card.pdf',
+      svg,
+      canvas.width,
+      canvas.height,
     );
   }
 
