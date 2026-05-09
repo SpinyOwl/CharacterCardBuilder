@@ -9,6 +9,30 @@ type PdfImagePage = {
   height: number;
 };
 
+type FilePickerAcceptType = {
+  description?: string;
+  accept: Record<string, string[]>;
+};
+
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  types?: FilePickerAcceptType[];
+};
+
+type FileSystemWritableFileStream = {
+  write(data: BlobPart): Promise<void>;
+  close(): Promise<void>;
+};
+
+type FileSystemFileHandle = {
+  createWritable(): Promise<FileSystemWritableFileStream>;
+};
+
+type WindowWithSaveFilePicker = Window &
+  typeof globalThis & {
+    showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<FileSystemFileHandle>;
+  };
+
 export class ExportImageAccessError extends Error {
   constructor(readonly imageUrl: string) {
     super(
@@ -56,6 +80,33 @@ export class ExportService {
   downloadText(filename: string, content: string, mimeType: string): void {
     const blob = new Blob([content], { type: mimeType });
     this.downloadBlob(filename, blob);
+  }
+
+  async saveTextFile(
+    filename: string,
+    content: string,
+    mimeType: string,
+    extensions: string[],
+  ): Promise<void> {
+    const blob = new Blob([content], { type: mimeType });
+    const saveFilePicker = (globalThis.window as WindowWithSaveFilePicker).showSaveFilePicker;
+    if (!saveFilePicker) {
+      this.downloadBlob(filename, blob);
+      return;
+    }
+
+    const handle = await saveFilePicker({
+      suggestedName: filename,
+      types: [
+        {
+          description: 'YAML project',
+          accept: { [mimeType]: extensions },
+        },
+      ],
+    });
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
   }
 
   private async renderSvgToRgb(

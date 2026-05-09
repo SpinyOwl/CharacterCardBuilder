@@ -369,9 +369,15 @@ export class App {
     }
   }
 
-  saveProject(): void {
+  async saveProject(): Promise<void> {
     this.closeFileMenu();
-    this.downloadYaml();
+    this.refreshYaml();
+    await this.exportService.saveTextFile(
+      'layered-card.yaml',
+      this.yamlText(),
+      'text/yaml',
+      ['.yaml', '.yml'],
+    );
   }
 
   showImportExport(): void {
