@@ -314,7 +314,7 @@
               (pointerdown)="$event.stopPropagation()"
               (click)="
                 node.kind === 'layer'
-                  ? state.selectLayer(node.layer.id)
+                  ? selectLayer(node.layer.id)
                   : node.kind === 'element'
                     ? state.selectElement(node.element.id)
                     : state.selectElement(node.owner.id)
@@ -421,6 +421,16 @@
                       opacityControlPercent(node.layer.opacity)
                     }}</span>
                   </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button danger-button"
+                    [disabled]="node.layer.locked"
+                    [title]="node.layer.locked ? 'Unlock layer to delete' : 'Delete layer'"
+                    [attr.aria-label]="node.layer.locked ? 'Unlock layer to delete' : 'Delete layer'"
+                    (click)="$event.stopPropagation(); deleteLayer(node.layer)"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  </button>
                 </div>
               } @else if (node.kind === 'element') {
                 <div
@@ -461,18 +471,6 @@
                   </button>
                   <button
                     type="button"
-                    class="tree-icon-button danger-button"
-                    [disabled]="node.element.locked"
-                    [title]="node.element.locked ? 'Unlock element to delete' : 'Delete element'"
-                    [attr.aria-label]="
-                      node.element.locked ? 'Unlock element to delete' : 'Delete element'
-                    "
-                    (click)="$event.stopPropagation(); deleteElement(node.element)"
-                  >
-                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
-                  </button>
-                  <button
-                    type="button"
                     class="tree-icon-button tree-opacity-button"
                     [disabled]="node.element.locked"
                     [title]="
@@ -492,6 +490,18 @@
                     <span class="opacity-value" aria-hidden="true">{{
                       opacityControlPercent(node.element.opacity)
                     }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button danger-button"
+                    [disabled]="node.element.locked"
+                    [title]="node.element.locked ? 'Unlock element to delete' : 'Delete element'"
+                    [attr.aria-label]="
+                      node.element.locked ? 'Unlock element to delete' : 'Delete element'
+                    "
+                    (click)="$event.stopPropagation(); deleteElement(node.element)"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                   </button>
                 </div>
               } @else {
@@ -518,7 +528,8 @@
                       node.interaction.visible ? 'visibility' : 'visibility_off'
                     }}</span>
                   </button>
-                  <span aria-hidden="true"></span>
+                  <span class="tree-control-placeholder" aria-hidden="true"></span>
+                  <span class="tree-control-placeholder" aria-hidden="true"></span>
                   <button
                     type="button"
                     class="tree-icon-button danger-button"
@@ -1263,6 +1274,29 @@
               <p class="muted">Group contains {{ selected.elements.length }} item(s).</p>
             }
           }
+        } @else if (state.selectedLayer(); as selectedLayer) {
+          <fieldset class="inspector-group">
+            <legend>Layer settings</legend>
+            <label>
+              Name
+              <input
+                [ngModel]="selectedLayer.name"
+                [disabled]="selectedLayer.locked"
+                (ngModelChange)="updateLayerName(selectedLayer, $event)"
+              />
+            </label>
+            <div class="button-row">
+              <button
+                type="button"
+                class="danger-button"
+                [disabled]="selectedLayer.locked"
+                [title]="selectedLayer.locked ? 'Unlock layer to delete' : 'Delete layer'"
+                (click)="deleteLayer(selectedLayer)"
+              >
+                Delete layer
+              </button>
+            </div>
+          </fieldset>
         } @else {
           <p class="muted">No editable element selected.</p>
         }

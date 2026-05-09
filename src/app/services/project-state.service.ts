@@ -26,7 +26,12 @@ export interface ElementViewTransform {
   rotation: number;
 }
 
+type ClipboardItem =
+  | { kind: 'layer'; layer: Layer }
+  | { kind: 'element'; element: DesignElement };
+
 const PROJECT_STORAGE_KEY = 'character-card-builder:current-project';
+const PASTE_OFFSET = 4;
 
 @Injectable({ providedIn: 'root' })
 export class ProjectStateService {
@@ -46,6 +51,7 @@ export class ProjectStateService {
     return selectedElementId ? (this.findElement(selectedElementId)?.element ?? null) : null;
   });
   readonly selectableElements = computed(() => getSelectableElements(this.project()));
+  private clipboard: ClipboardItem | null = null;
 
   setProject(project: Project): void {
     this.project.set(project);
@@ -103,6 +109,36 @@ export class ProjectStateService {
         layer.id === layerId ? { ...layer, ...patch } : layer,
       ),
     }));
+  }
+
+  deleteLayer(layerId: string): boolean {
+    const layer = this.project().layers.find((candidate) => candidate.id === layerId);
+    if (!layer || layer.locked) {
+      return false;
+    }
+
+    const selectedElementLayerId = this.selectedElementId()
+      ? this.findElement(this.selectedElementId() ?? '')?.layer.id
+      : null;
+
+    this.updateProject((project) => {
+      const layerIndex = project.layers.findIndex((candidate) => candidate.id === layerId);
+      const layers = project.layers.filter((candidate) => candidate.id !== layerId);
+      const nextSelectedLayer =
+        layers[Math.min(layerIndex, layers.length - 1)] ?? layers[layerIndex - 1] ?? null;
+
+      if (this.selectedLayerId() === layerId) {
+        this.selectedLayerId.set(nextSelectedLayer?.id ?? null);
+      }
+
+      if (selectedElementLayerId === layerId) {
+        this.selectedElementId.set(null);
+      }
+
+      return { ...project, layers };
+    });
+
+    return true;
   }
 
   reorderLayer(previousIndex: number, currentIndex: number): void {
@@ -247,6 +283,40 @@ export class ProjectStateService {
         elements: updateElementInList(layer.elements, elementId, patch),
       })),
     }));
+  }
+
+  copyLayer(layerId: string): boolean {
+    const layer = this.project().layers.find((candidate) => candidate.id === layerId);
+    if (!layer) {
+      return false;
+    }
+    this.clipboard = { kind: 'layer', layer: cloneSerializable(layer) };
+    return true;
+  }
+
+  copyElement(elementId: string): boolean {
+    const found = this.findElement(elementId);
+    if (!found) {
+      return false;
+    }
+    this.clipboard = { kind: 'element', element: cloneSerializable(found.element) };
+    return true;
+  }
+
+  canPasteClipboard(): boolean {
+    return this.clipboard !== null;
+  }
+
+  pasteClipboard(targetLayerId: string | null, targetElementId: string | null): Layer | DesignElement | null {
+    if (!this.clipboard) {
+      return null;
+    }
+
+    if (this.clipboard.kind === 'layer') {
+      return this.pasteLayer(this.clipboard.layer, targetLayerId);
+    }
+
+    return this.pasteElement(this.clipboard.element, targetLayerId, targetElementId);
   }
 
   updateElementInteraction(
@@ -522,6 +592,96 @@ export class ProjectStateService {
     return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
   }
 
+  private pasteLayer(sourceLayer: Layer, targetLayerId: string | null): Layer {
+    const layerId = this.createId('layer');
+    const layer: Layer = {
+      ...cloneSerializable(sourceLayer),
+      id: layerId,
+      name: `${sourceLayer.name} copy`,
+      elements: sourceLayer.elements.map((element) =>
+        cloneElementForPaste(element, layerId, (prefix) => this.createId(prefix)),
+      ),
+    };
+    const targetIndex = targetLayerId
+      ? this.project().layers.findIndex((candidate) => candidate.id === targetLayerId) + 1
+      : this.project().layers.length;
+    this.updateProject((project) => ({
+      ...project,
+      layers: insertAt(project.layers, layer, targetIndex > 0 ? targetIndex : project.layers.length),
+    }));
+    this.selectedLayerId.set(layer.id);
+    this.selectedElementId.set(null);
+    return layer;
+  }
+
+  private pasteElement(
+    sourceElement: DesignElement,
+    targetLayerId: string | null,
+    targetElementId: string | null,
+  ): DesignElement | null {
+    const target = this.elementPasteTarget(targetLayerId, targetElementId);
+    if (!target) {
+      return null;
+    }
+
+    const element = cloneElementForPaste(
+      sourceElement,
+      target.layerId,
+      (prefix) => this.createId(prefix),
+      PASTE_OFFSET,
+    );
+    this.updateProject((project) => ({
+      ...project,
+      layers: insertElementIntoLayers(project.layers, target.container, element, target.index),
+    }));
+    this.selectedLayerId.set(target.layerId);
+    this.selectedElementId.set(element.id);
+    return element;
+  }
+
+  private elementPasteTarget(
+    targetLayerId: string | null,
+    targetElementId: string | null,
+  ): { layerId: string; container: ElementContainer; index: number } | null {
+    const selectedLayer = this.project().layers.find((candidate) => candidate.id === targetLayerId);
+    if (selectedLayer && !selectedLayer.locked) {
+      return {
+        layerId: selectedLayer.id,
+        container: { kind: 'layer', layerId: selectedLayer.id },
+        index: selectedLayer.elements.length,
+      };
+    }
+
+    if (targetElementId) {
+      const found = this.findElement(targetElementId);
+      const container = this.elementContainer(targetElementId);
+      if (found && container && !found.layer.locked) {
+        if (isGroupElement(found.element) && !found.element.locked) {
+          return {
+            layerId: found.layer.id,
+            container: { kind: 'group', groupId: found.element.id },
+            index: found.element.elements.length,
+          };
+        }
+
+        const index = elementIndexInContainer(this.project().layers, container, targetElementId);
+        if (index >= 0) {
+          return { layerId: found.layer.id, container, index: index + 1 };
+        }
+      }
+    }
+
+    const layer = this.project().layers.find((candidate) => candidate.id === targetLayerId) ?? this.project().layers[0];
+    if (!layer || layer.locked) {
+      return null;
+    }
+    return {
+      layerId: layer.id,
+      container: { kind: 'layer', layerId: layer.id },
+      index: layer.elements.length,
+    };
+  }
+
   private updateProject(updater: (project: Project) => Project): void {
     this.project.update(updater);
     this.persistProject();
@@ -753,14 +913,85 @@ function insertElementIntoGroup(
   });
 }
 
-function insertAt(
-  elements: DesignElement[],
-  element: DesignElement,
-  index: number,
-): DesignElement[] {
-  const next = [...elements];
-  next.splice(Math.max(0, Math.min(index, next.length)), 0, element);
+function insertAt<T>(items: T[], item: T, index: number): T[] {
+  const next = [...items];
+  next.splice(Math.max(0, Math.min(index, next.length)), 0, item);
   return next;
+}
+
+function cloneElementForPaste(
+  sourceElement: DesignElement,
+  layerId: string,
+  createId: (prefix: string) => string,
+  offset = 0,
+): DesignElement {
+  const element = cloneSerializable(sourceElement);
+  return assignClonedElementIds(element, layerId, createId, offset);
+}
+
+function assignClonedElementIds(
+  element: DesignElement,
+  layerId: string,
+  createId: (prefix: string) => string,
+  offset: number,
+): DesignElement {
+  const clone = {
+    ...element,
+    id: createId(element.type),
+    layerId,
+    name: `${element.name} copy`,
+    x: element.x + offset,
+    y: element.y + offset,
+  } as DesignElement;
+
+  if (isShapeElement(clone)) {
+    clone.interactions = (clone.interactions ?? []).map((interaction) => ({
+      ...interaction,
+      id: createId(interaction.type),
+    })) as ShapeInteraction[];
+  }
+
+  if (isGearElement(clone)) {
+    clone.labels = (clone.labels ?? []).map((label) => ({
+      ...label,
+      id: createId('gear-label'),
+    }));
+  }
+
+  if (isGroupElement(clone)) {
+    clone.elements = clone.elements.map((child) =>
+      assignClonedElementIds(child, layerId, createId, offset),
+    );
+  }
+
+  return clone;
+}
+
+function elementIndexInContainer(
+  layers: Layer[],
+  container: ElementContainer,
+  elementId: string,
+): number {
+  const elements = elementsInContainer(layers, container);
+  return elements.findIndex((element) => element.id === elementId);
+}
+
+function elementsInContainer(layers: Layer[], container: ElementContainer): DesignElement[] {
+  if (container.kind === 'layer') {
+    return layers.find((layer) => layer.id === container.layerId)?.elements ?? [];
+  }
+
+  for (const layer of layers) {
+    const group = findElementInList(layer.elements, container.groupId);
+    if (group && isGroupElement(group)) {
+      return group.elements;
+    }
+  }
+  return [];
+}
+
+function cloneSerializable<T>(value: T): T {
+  return structuredClone(value);
 }
 
 function isDescendant(group: DesignElement, target: ElementContainer): boolean {

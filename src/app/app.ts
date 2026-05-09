@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ViewChild, computed, inject, signal } from '@angular/core';
+import { Component, HostListener, ViewChild, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MenuBar, MenuItem } from '@angular/aria/menu';
 import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolbar';
@@ -214,6 +214,27 @@ export class App {
 
   constructor() {
     this.refreshYaml();
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onDocumentKeyDown(event: KeyboardEvent): void {
+    if ((!event.ctrlKey && !event.metaKey) || this.isEditableShortcutTarget(event.target)) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+    if (key === 'c') {
+      if (this.copySelection()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (key === 'v') {
+      if (this.pasteClipboard()) {
+        event.preventDefault();
+      }
+    }
   }
 
   workspaceGridColumns(): string {
@@ -557,8 +578,7 @@ export class App {
     }
 
     if (value.startsWith('layer:')) {
-      this.state.selectLayer(value.slice('layer:'.length));
-      this.state.selectElement(null);
+      this.selectLayer(value.slice('layer:'.length));
       return;
     }
 
@@ -573,11 +593,24 @@ export class App {
     }
   }
 
+  selectLayer(layerId: string): void {
+    this.state.selectLayer(layerId);
+    this.state.selectElement(null);
+  }
+
   toggleLayerVisible(layer: Layer, visible: boolean): void {
     this.state.updateLayer(layer.id, { visible });
     if (!visible && this.state.selectedLayerId() === layer.id) {
       this.state.selectElement(null);
     }
+    this.refreshYaml();
+  }
+
+  updateLayerName(layer: Layer, name: string): void {
+    if (layer.locked) {
+      return;
+    }
+    this.state.updateLayer(layer.id, { name });
     this.refreshYaml();
   }
 
@@ -618,6 +651,28 @@ export class App {
   deleteElement(element: DesignElement): void {
     this.state.deleteElement(element.id);
     this.refreshYaml();
+  }
+
+  copySelection(): boolean {
+    const selectedElementId = this.state.selectedElementId();
+    if (selectedElementId) {
+      return this.state.copyElement(selectedElementId);
+    }
+
+    const selectedLayerId = this.state.selectedLayerId();
+    return selectedLayerId ? this.state.copyLayer(selectedLayerId) : false;
+  }
+
+  pasteClipboard(): boolean {
+    const pasted = this.state.pasteClipboard(
+      this.state.selectedLayerId(),
+      this.state.selectedElementId(),
+    );
+    if (!pasted) {
+      return false;
+    }
+    this.refreshYaml();
+    return true;
   }
 
   opacityControlPercent(opacity: number | undefined): number {
@@ -1246,6 +1301,15 @@ export class App {
     });
   }
 
+  private isEditableShortcutTarget(target: EventTarget | null): boolean {
+    return (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLSelectElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    );
+  }
+
   private patchGearLabel(
     gear: GearElement,
     labelId: string,
@@ -1256,6 +1320,12 @@ export class App {
     );
     this.state.updateElement(gear.id, { labels } as Partial<GearElement>);
     this.refreshYaml();
+  }
+
+  deleteLayer(layer: Layer): void {
+    if (this.state.deleteLayer(layer.id)) {
+      this.refreshYaml();
+    }
   }
 
   private patchInteraction(

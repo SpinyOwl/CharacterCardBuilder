@@ -156,6 +156,26 @@ describe('ProjectStateService', () => {
     expect(layer.elements).toHaveLength(0);
   });
 
+  it('deletes a layer and clears matching selections', () => {
+    const state = new ProjectStateService();
+
+    state.selectElement('card-body');
+
+    expect(state.deleteLayer('layer-top-card')).toBe(true);
+    expect(state.project().layers.map((layer) => layer.id)).not.toContain('layer-top-card');
+    expect(state.selectedLayerId()).toBe('layer-bottom-disc');
+    expect(state.selectedElementId()).toBeNull();
+  });
+
+  it('does not delete locked layers', () => {
+    const state = new ProjectStateService();
+
+    state.updateLayer('layer-top-card', { locked: true });
+
+    expect(state.deleteLayer('layer-top-card')).toBe(false);
+    expect(state.project().layers.map((layer) => layer.id)).toContain('layer-top-card');
+  });
+
   it('adds an element to the selected layer and selects it', () => {
     const state = new ProjectStateService();
 
@@ -218,6 +238,41 @@ describe('ProjectStateService', () => {
 
     expect(state.project().layers[0].elements[0].id).toBe('card-body');
     expect(state.findElement('card-body')?.layer.id).toBe('layer-bottom-disc');
+  });
+
+  it('copies and pastes a layer with new layer and element ids', () => {
+    const state = new ProjectStateService();
+    const initialLayerCount = state.project().layers.length;
+
+    expect(state.copyLayer('layer-top-card')).toBe(true);
+    const pasted = state.pasteClipboard('layer-top-card', null);
+
+    expect(pasted && 'elements' in pasted ? pasted.id : null).not.toBe('layer-top-card');
+    expect(state.project().layers).toHaveLength(initialLayerCount + 1);
+    expect(state.selectedLayerId()).toBe(pasted && 'elements' in pasted ? pasted.id : null);
+    expect(
+      pasted && 'elements' in pasted
+        ? pasted.elements.every((element) => element.layerId === pasted.id && element.id !== 'card-body')
+        : false,
+    ).toBe(true);
+  });
+
+  it('copies and pastes an element into the selected layer', () => {
+    const state = new ProjectStateService();
+
+    expect(state.copyElement('card-body')).toBe(true);
+    const pasted = state.pasteClipboard('layer-bottom-disc', 'card-body');
+
+    const pastedElement = pasted && !('elements' in pasted) ? pasted : null;
+    const bottomLayer = state.project().layers.find((layer) => layer.id === 'layer-bottom-disc');
+
+    expect(pastedElement?.id).toBeTruthy();
+    expect(pastedElement?.id).not.toBe('card-body');
+    expect(pastedElement?.name).toBe('Card body copy');
+    expect(pastedElement?.layerId).toBe('layer-bottom-disc');
+    expect(pastedElement).toMatchObject({ x: 49, y: 38 });
+    expect(bottomLayer?.elements.at(-1)?.id).toBe(pastedElement?.id);
+    expect(state.selectedElementId()).toBe(pastedElement?.id);
   });
 
   it('does not move locked elements between containers', () => {
