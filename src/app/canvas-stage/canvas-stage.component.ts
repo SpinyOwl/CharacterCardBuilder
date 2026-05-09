@@ -1193,6 +1193,7 @@ export class CanvasStageComponent {
           localPoint.y <= element.height
         );
       case 'triangle':
+        return this.isPointInsideTriangle(localPoint, element.width, element.height);
       case 'polygon':
       case 'gear':
         return this.isPointInsidePath(localPoint, this.elementPath(element));
@@ -1213,6 +1214,25 @@ export class CanvasStageComponent {
       y: dx * Math.sin(radians) + dy * Math.cos(radians),
     };
     return local.x >= 0 && local.y >= 0 && local.x <= box.width && local.y <= box.height;
+  }
+
+  private isPointInsideTriangle(point: Point, width: number, height: number): boolean {
+    const a = { x: width / 2, y: 0 };
+    const b = { x: width, y: height };
+    const c = { x: 0, y: height };
+    const area = this.triangleSignedArea(a, b, c);
+    if (area === 0) {
+      return false;
+    }
+
+    const s = this.triangleSignedArea(point, b, c) / area;
+    const t = this.triangleSignedArea(a, point, c) / area;
+    const u = this.triangleSignedArea(a, b, point) / area;
+    return s >= 0 && t >= 0 && u >= 0;
+  }
+
+  private triangleSignedArea(a: Point, b: Point, c: Point): number {
+    return ((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
   }
 
   private toElementLocalPoint(point: Point, element: DesignElement): Point {

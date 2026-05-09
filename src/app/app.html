@@ -619,6 +619,17 @@
                 (ngModelChange)="updateSelectedNumber('rotation', $event)"
               />
             </label>
+            @if (selected.type === 'circle') {
+              <label>
+                Radius
+                <input
+                  type="number"
+                  min="0"
+                  [ngModel]="selected.radius"
+                  (ngModelChange)="updateSelectedNumber('radius', $event)"
+                />
+              </label>
+            }
           </div>
           <label>
             Boolean mode
