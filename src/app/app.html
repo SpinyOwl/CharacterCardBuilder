@@ -125,6 +125,32 @@
           <span class="material-symbols-outlined" aria-hidden="true">folder</span>
         </button>
       </div>
+      <div ngToolbarWidgetGroup class="history-tool-group" aria-label="History tools">
+        <button
+          ngToolbarWidget
+          value="undo"
+          type="button"
+          class="toolbar-icon-button"
+          title="Undo"
+          aria-label="Undo"
+          [disabled]="!state.canUndo()"
+          (click)="undoProjectChange()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">undo</span>
+        </button>
+        <button
+          ngToolbarWidget
+          value="redo"
+          type="button"
+          class="toolbar-icon-button"
+          title="Redo"
+          aria-label="Redo"
+          [disabled]="!state.canRedo()"
+          (click)="redoProjectChange()"
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">redo</span>
+        </button>
+      </div>
       <div ngToolbarWidgetGroup class="snap-tool-group" aria-label="Snap tools">
         <button
           ngToolbarWidget

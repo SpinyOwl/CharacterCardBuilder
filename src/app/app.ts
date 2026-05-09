@@ -223,6 +223,21 @@ export class App {
     }
 
     const key = event.key.toLowerCase();
+    if (key === 'z') {
+      const changed = event.shiftKey ? this.redoProjectChange() : this.undoProjectChange();
+      if (changed) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (key === 'y') {
+      if (this.redoProjectChange()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
     if (key === 'c') {
       if (this.copySelection()) {
         event.preventDefault();
@@ -294,6 +309,7 @@ export class App {
   };
 
   private readonly onOpacityPointerUp = (): void => {
+    this.state.commitProjectTransaction();
     this.opacityDrag = null;
     window.removeEventListener('pointermove', this.onOpacityPointerMove);
   };
@@ -304,6 +320,22 @@ export class App {
 
   toggleSticky(): void {
     this.isStickyEnabled.update((enabled) => !enabled);
+  }
+
+  undoProjectChange(): boolean {
+    if (!this.state.undo()) {
+      return false;
+    }
+    this.refreshYaml();
+    return true;
+  }
+
+  redoProjectChange(): boolean {
+    if (!this.state.redo()) {
+      return false;
+    }
+    this.refreshYaml();
+    return true;
   }
 
   toggleFileMenu(): void {
@@ -696,6 +728,7 @@ export class App {
       startY: event.clientY,
       startOpacity: layer.opacity,
     };
+    this.state.beginProjectTransaction();
     window.addEventListener('pointermove', this.onOpacityPointerMove);
     window.addEventListener('pointerup', this.onOpacityPointerUp, { once: true });
   }
@@ -709,6 +742,7 @@ export class App {
       startY: event.clientY,
       startOpacity: element.opacity ?? 1,
     };
+    this.state.beginProjectTransaction();
     window.addEventListener('pointermove', this.onOpacityPointerMove);
     window.addEventListener('pointerup', this.onOpacityPointerUp, { once: true });
   }

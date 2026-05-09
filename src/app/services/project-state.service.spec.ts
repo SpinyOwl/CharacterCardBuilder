@@ -15,6 +15,125 @@ describe('ProjectStateService', () => {
     expect(new ProjectStateService().project().canvas.width).toBe(123);
   });
 
+  it('undoes and redoes project updates while restoring selection', () => {
+    const state = new ProjectStateService();
+
+    state.selectElement('card-body');
+    state.updateElement('card-body', { x: 60 });
+
+    expect(state.canUndo()).toBe(true);
+    expect(state.findElement('card-body')?.element.x).toBe(60);
+
+    expect(state.undo()).toBe(true);
+    expect(state.findElement('card-body')?.element.x).toBe(45);
+    expect(state.selectedElementId()).toBe('card-body');
+    expect(state.canRedo()).toBe(true);
+
+    expect(state.redo()).toBe(true);
+    expect(state.findElement('card-body')?.element.x).toBe(60);
+    expect(state.selectedElementId()).toBe('card-body');
+  });
+
+  it('undoes and redoes add, delete, reorder, paste, canvas, page setup, and setProject changes', () => {
+    const state = new ProjectStateService();
+
+    const layer = state.addLayer();
+    expect(state.project().layers.map((candidate) => candidate.id)).toContain(layer.id);
+    expect(state.undo()).toBe(true);
+    expect(state.project().layers.map((candidate) => candidate.id)).not.toContain(layer.id);
+    expect(state.redo()).toBe(true);
+    expect(state.project().layers.map((candidate) => candidate.id)).toContain(layer.id);
+
+    state.deleteElement('card-body');
+    expect(state.findElement('card-body')).toBeNull();
+    expect(state.undo()).toBe(true);
+    expect(state.findElement('card-body')).not.toBeNull();
+
+    const firstLayerId = state.project().layers[0].id;
+    state.reorderLayer(0, 1);
+    expect(state.project().layers[1].id).toBe(firstLayerId);
+    expect(state.undo()).toBe(true);
+    expect(state.project().layers[0].id).toBe(firstLayerId);
+
+    expect(state.copyElement('card-body')).toBe(true);
+    const pasted = state.pasteClipboard('layer-bottom-disc', 'card-body');
+    const pastedId = pasted && !('elements' in pasted) ? pasted.id : null;
+    expect(pastedId).toBeTruthy();
+    expect(state.findElement(pastedId ?? '')).not.toBeNull();
+    expect(state.undo()).toBe(true);
+    expect(state.findElement(pastedId ?? '')).toBeNull();
+
+    state.updateCanvas({ width: 123 });
+    expect(state.project().canvas.width).toBe(123);
+    expect(state.undo()).toBe(true);
+    expect(state.project().canvas.width).toBe(210);
+
+    state.updatePageSetup({ ...(state.project().pageSetup ?? createDefaultProject().pageSetup!), marginTop: 12 });
+    expect(state.project().pageSetup?.marginTop).toBe(12);
+    expect(state.undo()).toBe(true);
+    expect(state.project().pageSetup?.marginTop).toBe(0);
+
+    const importedProject = { ...createDefaultProject(), canvas: { width: 90, height: 80, unit: 'mm' as const } };
+    state.setProject(importedProject);
+    expect(state.project().canvas.width).toBe(90);
+    expect(state.undo()).toBe(true);
+    expect(state.project().canvas.width).toBe(210);
+  });
+
+  it('clears redo history after a new project mutation', () => {
+    const state = new ProjectStateService();
+
+    state.updateCanvas({ width: 123 });
+    expect(state.undo()).toBe(true);
+    expect(state.canRedo()).toBe(true);
+
+    state.updateCanvas({ width: 124 });
+
+    expect(state.canRedo()).toBe(false);
+    expect(state.project().canvas.width).toBe(124);
+  });
+
+  it('does not create undo entries for locked no-op mutations', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('card-body', { locked: true });
+    state.updateElement('card-body', { x: 99 });
+
+    expect(state.findElement('card-body')?.element.x).toBe(45);
+    expect(state.undo()).toBe(true);
+    expect(state.findElement('card-body')?.element.locked).toBe(false);
+    expect(state.canUndo()).toBe(false);
+  });
+
+  it('groups transaction updates into one undo step', () => {
+    const state = new ProjectStateService();
+
+    state.beginProjectTransaction();
+    state.updateCanvas({ width: 111 });
+    state.updateCanvas({ width: 112 });
+    state.commitProjectTransaction();
+
+    expect(state.project().canvas.width).toBe(112);
+    expect(state.undo()).toBe(true);
+    expect(state.project().canvas.width).toBe(210);
+    expect(state.canUndo()).toBe(false);
+  });
+
+  it('limits undo history to 100 snapshots', () => {
+    const state = new ProjectStateService();
+
+    for (let width = 0; width <= 100; width += 1) {
+      state.updateCanvas({ width });
+    }
+
+    for (let index = 0; index < 100; index += 1) {
+      expect(state.undo()).toBe(true);
+    }
+
+    expect(state.project().canvas.width).toBe(0);
+    expect(state.canUndo()).toBe(false);
+  });
+
   it('loads the default project when stored project data is invalid', () => {
     localStorage.setItem('character-card-builder:current-project', JSON.stringify({ version: 999 }));
 

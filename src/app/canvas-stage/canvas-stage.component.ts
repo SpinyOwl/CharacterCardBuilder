@@ -103,6 +103,7 @@ export class CanvasStageComponent {
       return;
     }
 
+    this.state.beginProjectTransaction();
     this.state.selectElement(hit.element.id);
     this.dragState = {
       kind: 'move',
@@ -134,6 +135,7 @@ export class CanvasStageComponent {
       return;
     }
 
+    this.state.beginProjectTransaction();
     this.state.selectElement(element.id);
     this.dragState = {
       kind: 'resize-shape',
@@ -193,6 +195,7 @@ export class CanvasStageComponent {
       return;
     }
 
+    this.state.beginProjectTransaction();
     this.state.selectElement(element.id);
     this.dragState = {
       kind: 'move-interaction-point',
@@ -279,6 +282,13 @@ export class CanvasStageComponent {
   }
 
   onSvgPointerUp(): void {
+    if (
+      this.dragState?.kind === 'move' ||
+      this.dragState?.kind === 'resize-shape' ||
+      this.dragState?.kind === 'move-interaction-point'
+    ) {
+      this.state.commitProjectTransaction();
+    }
     this.dragState = null;
   }
 

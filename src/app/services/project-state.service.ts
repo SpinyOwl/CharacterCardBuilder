@@ -30,7 +30,14 @@ type ClipboardItem =
   | { kind: 'layer'; layer: Layer }
   | { kind: 'element'; element: DesignElement };
 
+interface ProjectHistorySnapshot {
+  project: Project;
+  selectedLayerId: string | null;
+  selectedElementId: string | null;
+}
+
 const PROJECT_STORAGE_KEY = 'character-card-builder:current-project';
+const HISTORY_LIMIT = 100;
 const PASTE_OFFSET = 4;
 
 @Injectable({ providedIn: 'root' })
@@ -40,6 +47,8 @@ export class ProjectStateService {
   readonly selectedElementId = signal<string | null>(null);
   readonly selectedLayerId = signal<string | null>('layer-top-card');
   readonly viewTransforms = signal<Record<string, ElementViewTransform>>({});
+  private readonly pastSnapshots = signal<ProjectHistorySnapshot[]>([]);
+  private readonly futureSnapshots = signal<ProjectHistorySnapshot[]>([]);
 
   readonly visibleLayers = computed(() => this.project().layers.filter((layer) => layer.visible));
   readonly selectedLayer = computed(() => {
@@ -51,14 +60,70 @@ export class ProjectStateService {
     return selectedElementId ? (this.findElement(selectedElementId)?.element ?? null) : null;
   });
   readonly selectableElements = computed(() => getSelectableElements(this.project()));
+  readonly canUndo = computed(() => this.pastSnapshots().length > 0);
+  readonly canRedo = computed(() => this.futureSnapshots().length > 0);
   private clipboard: ClipboardItem | null = null;
+  private transactionSnapshot: ProjectHistorySnapshot | null = null;
 
   setProject(project: Project): void {
+    const previousSnapshot = this.currentHistorySnapshot();
+    const nextProject = cloneSerializable(project);
+    if (!projectsEqual(previousSnapshot.project, nextProject)) {
+      this.pushPastSnapshot(previousSnapshot);
+      this.clearFutureSnapshots();
+    }
+
     this.project.set(project);
     this.persistProject();
     this.selectedLayerId.set(project.layers[0]?.id ?? null);
     this.selectedElementId.set(null);
     this.viewTransforms.set({});
+  }
+
+  beginProjectTransaction(): void {
+    this.transactionSnapshot ??= this.currentHistorySnapshot();
+  }
+
+  commitProjectTransaction(): void {
+    if (!this.transactionSnapshot) {
+      return;
+    }
+
+    const snapshot = this.transactionSnapshot;
+    this.transactionSnapshot = null;
+    if (projectsEqual(snapshot.project, this.project())) {
+      return;
+    }
+
+    this.pushPastSnapshot(snapshot);
+    this.clearFutureSnapshots();
+  }
+
+  undo(): boolean {
+    const snapshot = this.pastSnapshots().at(-1);
+    if (!snapshot) {
+      return false;
+    }
+
+    this.pastSnapshots.update((snapshots) => snapshots.slice(0, -1));
+    this.futureSnapshots.update((snapshots) => [
+      this.currentHistorySnapshot(),
+      ...snapshots,
+    ]);
+    this.restoreHistorySnapshot(snapshot);
+    return true;
+  }
+
+  redo(): boolean {
+    const snapshot = this.futureSnapshots()[0];
+    if (!snapshot) {
+      return false;
+    }
+
+    this.futureSnapshots.update((snapshots) => snapshots.slice(1));
+    this.pushPastSnapshot(this.currentHistorySnapshot());
+    this.restoreHistorySnapshot(snapshot);
+    return true;
   }
 
   setMode(mode: AppMode): void {
@@ -683,8 +748,47 @@ export class ProjectStateService {
   }
 
   private updateProject(updater: (project: Project) => Project): void {
-    this.project.update(updater);
+    const previousSnapshot = this.currentHistorySnapshot();
+    const nextProject = updater(this.project());
+    if (projectsEqual(previousSnapshot.project, nextProject)) {
+      return;
+    }
+
+    if (!this.transactionSnapshot) {
+      this.pushPastSnapshot(previousSnapshot);
+      this.clearFutureSnapshots();
+    }
+
+    this.project.set(nextProject);
     this.persistProject();
+  }
+
+  private currentHistorySnapshot(): ProjectHistorySnapshot {
+    return {
+      project: cloneSerializable(this.project()),
+      selectedLayerId: this.selectedLayerId(),
+      selectedElementId: this.selectedElementId(),
+    };
+  }
+
+  private restoreHistorySnapshot(snapshot: ProjectHistorySnapshot): void {
+    this.project.set(cloneSerializable(snapshot.project));
+    this.selectedLayerId.set(snapshot.selectedLayerId);
+    this.selectedElementId.set(snapshot.selectedElementId);
+    this.viewTransforms.set({});
+    this.persistProject();
+  }
+
+  private pushPastSnapshot(snapshot: ProjectHistorySnapshot): void {
+    this.pastSnapshots.update((snapshots) =>
+      [...snapshots, cloneSerializable(snapshot)].slice(-HISTORY_LIMIT),
+    );
+  }
+
+  private clearFutureSnapshots(): void {
+    if (this.futureSnapshots().length > 0) {
+      this.futureSnapshots.set([]);
+    }
   }
 
   private persistProject(): void {
@@ -992,6 +1096,10 @@ function elementsInContainer(layers: Layer[], container: ElementContainer): Desi
 
 function cloneSerializable<T>(value: T): T {
   return structuredClone(value);
+}
+
+function projectsEqual(first: Project, second: Project): boolean {
+  return JSON.stringify(first) === JSON.stringify(second);
 }
 
 function isDescendant(group: DesignElement, target: ElementContainer): boolean {
