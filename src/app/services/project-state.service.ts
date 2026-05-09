@@ -94,7 +94,7 @@ export class ProjectStateService {
     }
 
     const found = this.findElement(elementId);
-    if (!found || !canEditElement(found.layer, found.element) || this.mode() !== 'edit') {
+    if (!found || this.mode() !== 'edit') {
       return;
     }
 
@@ -272,7 +272,7 @@ export class ProjectStateService {
 
   updateElement(elementId: string, patch: Partial<DesignElement>): void {
     const found = this.findElement(elementId);
-    if (found?.element.locked && !isLockControlPatch(patch)) {
+    if ((found?.layer.locked || found?.element.locked) && !isLockControlPatch(patch)) {
       return;
     }
 

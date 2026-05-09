@@ -115,3 +115,8 @@ body {
 .tree-opacity-button:hover .opacity-value {
   background: var(--app-selected-text);
 }
+
+.readonly-selection :is(input:not([readonly]), select, textarea, button:not(.fieldset-toggle)) {
+  pointer-events: none;
+  opacity: 0.62;
+}

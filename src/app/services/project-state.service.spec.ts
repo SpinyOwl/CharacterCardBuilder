@@ -120,7 +120,7 @@ describe('ProjectStateService', () => {
     expect(state.selectedElementId()).toBeNull();
   });
 
-  it('prevents locked elements from being selected, edited, moved, or deleted', () => {
+  it('allows selecting but not editing, moving, or deleting locked elements', () => {
     const state = new ProjectStateService();
 
     state.updateElement('card-body', { locked: true });
@@ -130,8 +130,19 @@ describe('ProjectStateService', () => {
     state.deleteElement('card-body');
 
     const element = state.findElement('card-body')?.element;
-    expect(state.selectedElementId()).toBeNull();
+    expect(state.selectedElementId()).toBe('card-body');
     expect(element).toMatchObject({ id: 'card-body', x: 45, y: 34, locked: true });
+  });
+
+  it('allows selecting but not editing elements on locked layers', () => {
+    const state = new ProjectStateService();
+
+    state.updateLayer('layer-top-card', { locked: true });
+    state.selectElement('card-body');
+    state.updateElement('card-body', { x: 99 });
+
+    expect(state.selectedElementId()).toBe('card-body');
+    expect(state.findElement('card-body')?.element.x).toBe(45);
   });
 
   it('allows locked elements to update opacity', () => {

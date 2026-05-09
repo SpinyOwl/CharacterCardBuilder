@@ -22,7 +22,7 @@ import { ImportExportService } from './services/import-export.service';
 import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
 import { AppSettingsService, ApplicationTheme } from './services/app-settings.service';
-import { ElementContainer } from './services/project-state.service';
+import { ElementContainer, canEditElement } from './services/project-state.service';
 
 const PAPER_SIZES: Record<PaperSize, { width: number; height: number }> = {
   A6: { width: 105, height: 148 },
@@ -596,6 +596,16 @@ export class App {
   selectLayer(layerId: string): void {
     this.state.selectLayer(layerId);
     this.state.selectElement(null);
+  }
+
+  canEditSelectedElement(): boolean {
+    const selectedElementId = this.state.selectedElementId();
+    if (!selectedElementId) {
+      return false;
+    }
+
+    const found = this.state.findElement(selectedElementId);
+    return found ? canEditElement(found.layer, found.element) : false;
   }
 
   toggleLayerVisible(layer: Layer, visible: boolean): void {

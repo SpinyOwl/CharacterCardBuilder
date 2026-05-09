@@ -587,6 +587,7 @@
             Type
             <input [value]="selected.type" readonly />
           </label>
+          <div [class.readonly-selection]="!canEditSelectedElement()">
           <label>
             Name
             <input
@@ -1271,6 +1272,7 @@
               <p class="muted">Group contains {{ selected.elements.length }} item(s).</p>
             }
           }
+          </div>
         } @else if (state.selectedLayer(); as selectedLayer) {
           <fieldset class="inspector-group">
             <legend>Layer settings</legend>
