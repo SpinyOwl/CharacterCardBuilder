@@ -707,6 +707,14 @@
                     (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
                   />
                 </label>
+                <label>
+                  Upload image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    (change)="onBackgroundImageFileSelected($event)"
+                  />
+                </label>
                 <div class="field-grid">
                   <label>
                     Position X (%)

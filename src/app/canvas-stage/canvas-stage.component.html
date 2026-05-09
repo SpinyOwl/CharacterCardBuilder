@@ -25,6 +25,7 @@
     @if (showGrid()) {
       <rect
         class="editor-grid"
+        data-editor-helper="true"
         [attr.width]="state.project().canvas.width"
         [attr.height]="state.project().canvas.height"
         [attr.fill]="'url(#' + gridPatternId() + ')'"
@@ -33,6 +34,7 @@
     @if (state.mode() === 'edit') {
       <rect
         class="page-margin-guide"
+        data-editor-helper="true"
         [attr.x]="state.project().pageSetup?.marginLeft ?? 0"
         [attr.y]="state.project().pageSetup?.marginTop ?? 0"
         [attr.width]="
@@ -45,6 +47,7 @@
           (state.project().pageSetup?.marginTop ?? 0) -
           (state.project().pageSetup?.marginBottom ?? 0)
         "
+        fill="none"
       />
     }
 
@@ -183,7 +186,7 @@
     </defs>
 
     @for (layer of state.visibleLayers(); track layer.id) {
-      <g [attr.opacity]="layer.opacity">
+      <g [attr.opacity]="layer.opacity" [attr.data-export-layer-id]="layer.id">
         @for (segment of renderSegments(layer); track segment.id) {
           <g
             [attr.mask]="
@@ -477,6 +480,9 @@
         y="0"
         [attr.width]="state.project().canvas.width"
         [attr.height]="state.project().canvas.height"
+        fill="none"
+        stroke="#2f3a45"
+        stroke-width="0.7"
       />
     }
   </svg>

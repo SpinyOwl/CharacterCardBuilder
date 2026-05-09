@@ -2,13 +2,34 @@ import { Injectable } from '@angular/core';
 
 const POINTS_PER_MILLIMETER = 72 / 25.4;
 const EXPORT_PIXELS_PER_MILLIMETER = 8;
-const JPEG_QUALITY = 0.95;
+
+type PdfImagePage = {
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+};
+
+export class ExportImageAccessError extends Error {
+  constructor(readonly imageUrl: string) {
+    super(
+      `Unable to export image URL because the image host does not allow browser access: ${imageUrl}`,
+    );
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class ExportService {
-  serializeSvg(svg: SVGSVGElement): string {
+  async serializeSvg(svg: SVGSVGElement, layerId?: string): Promise<string> {
     const clone = svg.cloneNode(true) as SVGSVGElement;
-    clone.querySelectorAll('[data-editor-helper="true"]').forEach((node) => node.remove());
+    clone
+      .querySelectorAll('[data-editor-helper="true"], [data-interaction-guides="true"]')
+      .forEach((node) => node.remove());
+    if (layerId) {
+      clone
+        .querySelectorAll(`[data-export-layer-id]:not([data-export-layer-id="${CSS.escape(layerId)}"])`)
+        .forEach((node) => node.remove());
+    }
+    await this.embedLinkedImages(clone);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
     return new XMLSerializer().serializeToString(clone);
   }
@@ -18,11 +39,17 @@ export class ExportService {
     svg: SVGSVGElement,
     widthMillimeters: number,
     heightMillimeters: number,
+    layerIds: string[] = [],
   ): Promise<void> {
-    const jpegBytes = await this.renderSvgToJpeg(svg, widthMillimeters, heightMillimeters);
+    const exportLayerIds = layerIds.length > 0 ? layerIds : [undefined];
+    const pages = await Promise.all(
+      exportLayerIds.map((layerId) =>
+        this.renderSvgToRgb(svg, widthMillimeters, heightMillimeters, layerId),
+      ),
+    );
     this.downloadBlob(
       filename,
-      this.createSingleImagePdf(jpegBytes, widthMillimeters, heightMillimeters),
+      this.createImagePdf(pages, widthMillimeters, heightMillimeters),
     );
   }
 
@@ -31,12 +58,13 @@ export class ExportService {
     this.downloadBlob(filename, blob);
   }
 
-  private async renderSvgToJpeg(
+  private async renderSvgToRgb(
     svg: SVGSVGElement,
     widthMillimeters: number,
     heightMillimeters: number,
-  ): Promise<Uint8Array> {
-    const svgBlob = new Blob([this.serializeSvg(svg)], { type: 'image/svg+xml' });
+    layerId?: string,
+  ): Promise<PdfImagePage> {
+    const svgBlob = new Blob([await this.serializeSvg(svg, layerId)], { type: 'image/svg+xml' });
     const svgUrl = URL.createObjectURL(svgBlob);
 
     try {
@@ -53,7 +81,11 @@ export class ExportService {
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      return this.dataUrlToBytes(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+      return {
+        bytes: this.canvasRgbBytes(context, canvas.width, canvas.height),
+        width: canvas.width,
+        height: canvas.height,
+      };
     } finally {
       URL.revokeObjectURL(svgUrl);
     }
@@ -68,17 +100,55 @@ export class ExportService {
     });
   }
 
-  private createSingleImagePdf(
-    jpegBytes: Uint8Array,
+  private async embedLinkedImages(svg: SVGSVGElement): Promise<void> {
+    const images = Array.from(svg.querySelectorAll('image'));
+    await Promise.all(
+      images.map(async (image) => {
+        const href = image.getAttribute('href') ?? image.getAttribute('xlink:href');
+        if (!href || href.startsWith('data:')) {
+          return;
+        }
+
+        const dataUrl = await this.fetchAsDataUrl(href);
+        image.setAttribute('href', dataUrl);
+        image.removeAttribute('xlink:href');
+      }),
+    );
+  }
+
+  private async fetchAsDataUrl(url: string): Promise<string> {
+    let response: Response;
+    try {
+      response = await fetch(url, { credentials: 'omit' });
+    } catch {
+      throw new ExportImageAccessError(url);
+    }
+    if (!response.ok) {
+      throw new ExportImageAccessError(url);
+    }
+    return this.blobToDataUrl(await response.blob());
+  }
+
+  private blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Unable to embed export image.'));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  private createImagePdf(
+    pages: PdfImagePage[],
     widthMillimeters: number,
     heightMillimeters: number,
   ): Blob {
     const encoder = new TextEncoder();
     const pageWidth = this.formatPdfNumber(widthMillimeters * POINTS_PER_MILLIMETER);
     const pageHeight = this.formatPdfNumber(heightMillimeters * POINTS_PER_MILLIMETER);
-    const imageWidth = Math.ceil(widthMillimeters * EXPORT_PIXELS_PER_MILLIMETER);
-    const imageHeight = Math.ceil(heightMillimeters * EXPORT_PIXELS_PER_MILLIMETER);
     const contentStream = `q\n${pageWidth} 0 0 ${pageHeight} 0 0 cm\n/Im0 Do\nQ\n`;
+    const pageObjectIds = pages.map((_, index) => 3 + index);
+    const firstResourceObjectId = 3 + pages.length;
     const chunks: BlobPart[] = [];
     const offsets: number[] = [0];
     let byteOffset = 0;
@@ -99,39 +169,61 @@ export class ExportService {
 
     push('%PDF-1.4\n');
     object(1, '<< /Type /Catalog /Pages 2 0 R >>');
-    object(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
     object(
-      3,
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>`,
+      2,
+      `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pages.length} >>`,
     );
-    offsets[4] = byteOffset;
-    push('4 0 obj\n');
-    push(
-      `<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
-    );
-    push(jpegBytes);
-    push('\nendstream\nendobj\n');
-    object(5, `<< /Length ${encoder.encode(contentStream).length} >>\nstream\n${contentStream}endstream`);
+    pages.forEach((_, index) => {
+      const pageObjectId = pageObjectIds[index];
+      const imageObjectId = firstResourceObjectId + index * 2;
+      const contentObjectId = imageObjectId + 1;
+      object(
+        pageObjectId,
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /XObject << /Im0 ${imageObjectId} 0 R >> >> /Contents ${contentObjectId} 0 R >>`,
+      );
+    });
+    pages.forEach((page, index) => {
+      const imageObjectId = firstResourceObjectId + index * 2;
+      const contentObjectId = imageObjectId + 1;
+      offsets[imageObjectId] = byteOffset;
+      push(`${imageObjectId} 0 obj\n`);
+      push(
+        `<< /Type /XObject /Subtype /Image /Width ${page.width} /Height ${page.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length ${page.bytes.length} >>\nstream\n`,
+      );
+      push(page.bytes);
+      push('\nendstream\nendobj\n');
+      object(
+        contentObjectId,
+        `<< /Length ${encoder.encode(contentStream).length} >>\nstream\n${contentStream}endstream`,
+      );
+    });
 
     const xrefOffset = byteOffset;
-    push('xref\n0 6\n');
+    const objectCount = firstResourceObjectId + pages.length * 2;
+    push(`xref\n0 ${objectCount}\n`);
     push('0000000000 65535 f \n');
-    for (let id = 1; id <= 5; id += 1) {
+    for (let id = 1; id < objectCount; id += 1) {
       push(`${String(offsets[id]).padStart(10, '0')} 00000 n \n`);
     }
-    push(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+    push(`trailer\n<< /Size ${objectCount} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
 
     return new Blob(chunks, { type: 'application/pdf' });
   }
 
-  private dataUrlToBytes(dataUrl: string): Uint8Array {
-    const [, base64] = dataUrl.split(',');
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let index = 0; index < binary.length; index += 1) {
-      bytes[index] = binary.charCodeAt(index);
+  private canvasRgbBytes(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ): Uint8Array {
+    const rgba = context.getImageData(0, 0, width, height).data;
+    const rgb = new Uint8Array(width * height * 3);
+    for (let sourceIndex = 0, targetIndex = 0; sourceIndex < rgba.length; sourceIndex += 4) {
+      rgb[targetIndex] = rgba[sourceIndex];
+      rgb[targetIndex + 1] = rgba[sourceIndex + 1];
+      rgb[targetIndex + 2] = rgba[sourceIndex + 2];
+      targetIndex += 3;
     }
-    return bytes;
+    return rgb;
   }
 
   private formatPdfNumber(value: number): string {

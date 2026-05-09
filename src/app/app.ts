@@ -17,7 +17,7 @@ import {
   isShapeElement,
 } from './models/element.model';
 import { Layer } from './models/layer.model';
-import { ExportService } from './services/export.service';
+import { ExportImageAccessError, ExportService } from './services/export.service';
 import { ImportExportService } from './services/import-export.service';
 import { ProjectStateService } from './services/project-state.service';
 import { PageOrientation, PageSetup, PaperSize } from './models/project.model';
@@ -473,12 +473,23 @@ export class App {
       return;
     }
     const canvas = this.state.project().canvas;
-    await this.exportService.downloadPdfFromSvg(
-      'layered-card.pdf',
-      svg,
-      canvas.width,
-      canvas.height,
-    );
+    try {
+      await this.exportService.downloadPdfFromSvg(
+        'layered-card.pdf',
+        svg,
+        canvas.width,
+        canvas.height,
+        this.state.visibleLayers().map((layer) => layer.id),
+      );
+    } catch (error) {
+      if (error instanceof ExportImageAccessError) {
+        window.alert(
+          `PDF export cannot include this image URL because its server blocks browser access:\n\n${error.imageUrl}\n\nUse a data URL, same-origin image, or a CORS-enabled image URL.`,
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   downloadYaml(): void {
@@ -1092,6 +1103,20 @@ export class App {
     this.patchSelected({ [property]: value.trim() || undefined } as Partial<DesignElement>);
   }
 
+  async onBackgroundImageFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      this.patchSelected({ backgroundImage: await this.readFileAsDataUrl(file) } as Partial<DesignElement>);
+    } finally {
+      input.value = '';
+    }
+  }
+
   updateSelectedNumber(property: string, rawValue: string | number): void {
     const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
     if (Number.isFinite(value)) {
@@ -1210,6 +1235,15 @@ export class App {
       this.state.updateElement(selectedElementId, patch);
       this.refreshYaml();
     }
+  }
+
+  private readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('Unable to read image file.'));
+      reader.readAsDataURL(file);
+    });
   }
 
   private patchGearLabel(
