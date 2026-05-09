@@ -725,7 +725,7 @@ export function canEditElement(layer: Layer, element: DesignElement): boolean {
 }
 
 function isLockControlPatch(patch: Partial<DesignElement>): boolean {
-  const editableWhileLocked = new Set<keyof DesignElement>(['locked', 'visible']);
+  const editableWhileLocked = new Set<keyof DesignElement>(['locked', 'visible', 'opacity']);
   return Object.keys(patch).every((key) => editableWhileLocked.has(key as keyof DesignElement));
 }
 

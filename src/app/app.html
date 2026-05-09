@@ -402,16 +402,9 @@
                   <button
                     type="button"
                     class="tree-icon-button tree-opacity-button"
-                    [disabled]="node.layer.locked"
-                    [title]="
-                      node.layer.locked
-                        ? 'Unlock layer to change opacity'
-                        : 'Layer opacity: ' + opacityControlLabel(node.layer.opacity)
-                    "
+                    [title]="'Layer opacity: ' + opacityControlLabel(node.layer.opacity)"
                     [attr.aria-label]="
-                      node.layer.locked
-                        ? 'Unlock layer to change opacity'
-                        : 'Layer opacity: ' + opacityControlLabel(node.layer.opacity)
+                      'Layer opacity: ' + opacityControlLabel(node.layer.opacity)
                     "
                     (pointerdown)="onLayerOpacityPointerDown($event, node.layer)"
                     (wheel)="onLayerOpacityWheel($event, node.layer)"
@@ -472,16 +465,9 @@
                   <button
                     type="button"
                     class="tree-icon-button tree-opacity-button"
-                    [disabled]="node.element.locked"
-                    [title]="
-                      node.element.locked
-                        ? 'Unlock element to change opacity'
-                        : 'Element opacity: ' + opacityControlLabel(node.element.opacity)
-                    "
+                    [title]="'Element opacity: ' + opacityControlLabel(node.element.opacity)"
                     [attr.aria-label]="
-                      node.element.locked
-                        ? 'Unlock element to change opacity'
-                        : 'Element opacity: ' + opacityControlLabel(node.element.opacity)
+                      'Element opacity: ' + opacityControlLabel(node.element.opacity)
                     "
                     (pointerdown)="onElementOpacityPointerDown($event, node.element)"
                     (wheel)="onElementOpacityWheel($event, node.element)"

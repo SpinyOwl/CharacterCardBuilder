@@ -615,9 +615,6 @@ export class App {
   }
 
   updateLayerOpacity(layer: Layer, rawValue: string | number): void {
-    if (layer.locked) {
-      return;
-    }
     this.state.updateLayer(layer.id, { opacity: this.normalizedOpacity(rawValue) });
     this.refreshYaml();
   }
@@ -631,9 +628,6 @@ export class App {
   }
 
   updateElementOpacity(element: DesignElement, rawValue: string | number): void {
-    if (element.locked) {
-      return;
-    }
     this.state.updateElement(element.id, {
       opacity: this.normalizedOpacity(rawValue),
     } as Partial<DesignElement>);
@@ -684,9 +678,6 @@ export class App {
   }
 
   onLayerOpacityPointerDown(event: PointerEvent, layer: Layer): void {
-    if (layer.locked) {
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     this.opacityDrag = {
@@ -700,9 +691,6 @@ export class App {
   }
 
   onElementOpacityPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (element.locked) {
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     this.opacityDrag = {
@@ -716,18 +704,12 @@ export class App {
   }
 
   onLayerOpacityWheel(event: WheelEvent, layer: Layer): void {
-    if (layer.locked) {
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     this.updateLayerOpacity(layer, layer.opacity + this.opacityWheelDelta(event));
   }
 
   onElementOpacityWheel(event: WheelEvent, element: DesignElement): void {
-    if (element.locked) {
-      return;
-    }
     event.preventDefault();
     event.stopPropagation();
     this.updateElementOpacity(element, (element.opacity ?? 1) + this.opacityWheelDelta(event));

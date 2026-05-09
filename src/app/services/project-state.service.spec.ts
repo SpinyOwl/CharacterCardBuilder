@@ -134,6 +134,15 @@ describe('ProjectStateService', () => {
     expect(element).toMatchObject({ id: 'card-body', x: 45, y: 34, locked: true });
   });
 
+  it('allows locked elements to update opacity', () => {
+    const state = new ProjectStateService();
+
+    state.updateElement('card-body', { locked: true });
+    state.updateElement('card-body', { opacity: 0.4 });
+
+    expect(state.findElement('card-body')?.element.opacity).toBe(0.4);
+  });
+
   it('prevents locked gears from rotating in view mode', () => {
     const state = new ProjectStateService();
 
