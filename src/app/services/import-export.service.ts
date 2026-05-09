@@ -223,6 +223,11 @@ function assertShapeStyle(value: Record<string, unknown>): {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
+  backgroundPositionX: number;
+  backgroundPositionY: number;
+  backgroundScale: number;
+  backgroundRotation: number;
+  backgroundRepeat: 'repeat' | 'no-repeat';
   interactions: ShapeInteraction[];
 } {
   return {
@@ -233,6 +238,17 @@ function assertShapeStyle(value: Record<string, unknown>): {
       typeof value['backgroundImage'] === 'string' && value['backgroundImage'].trim()
         ? value['backgroundImage']
         : undefined,
+    backgroundPositionX:
+      typeof value['backgroundPositionX'] === 'number' ? value['backgroundPositionX'] : 0,
+    backgroundPositionY:
+      typeof value['backgroundPositionY'] === 'number' ? value['backgroundPositionY'] : 0,
+    backgroundScale:
+      typeof value['backgroundScale'] === 'number' && value['backgroundScale'] > 0
+        ? value['backgroundScale']
+        : 1,
+    backgroundRotation:
+      typeof value['backgroundRotation'] === 'number' ? value['backgroundRotation'] : 0,
+    backgroundRepeat: value['backgroundRepeat'] === 'repeat' ? 'repeat' : 'no-repeat',
     interactions: Array.isArray(value['interactions'])
       ? value['interactions'].map(assertShapeInteraction)
       : [],

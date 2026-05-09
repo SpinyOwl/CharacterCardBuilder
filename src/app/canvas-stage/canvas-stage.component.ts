@@ -313,6 +313,37 @@ export class CanvasStageComponent {
     return `background-${element.id}`;
   }
 
+  backgroundPatternSize(element: DesignElement): number {
+    return isShapeElement(element) && element.backgroundRepeat === 'repeat'
+      ? 1 / Math.max(0.05, element.backgroundScale ?? 1)
+      : 1;
+  }
+
+  backgroundImageSize(element: DesignElement): number {
+    return isShapeElement(element)
+      ? this.backgroundPatternSize(element) * Math.max(0.05, element.backgroundScale ?? 1)
+      : 1;
+  }
+
+  backgroundImageOffset(element: DesignElement, axis: 'x' | 'y'): number {
+    if (!isShapeElement(element)) {
+      return 0;
+    }
+    const scale = Math.max(0.05, element.backgroundScale ?? 1);
+    const position = axis === 'x' ? element.backgroundPositionX ?? 0 : element.backgroundPositionY ?? 0;
+    const patternSize = this.backgroundPatternSize(element);
+    const availableSpace = element.backgroundRepeat === 'repeat' ? patternSize : 1 - scale;
+    return (position / 100) * availableSpace;
+  }
+
+  backgroundPatternTransform(element: DesignElement): string | null {
+    if (!isShapeElement(element)) {
+      return null;
+    }
+    const rotation = element.backgroundRotation ?? 0;
+    return rotation === 0 ? null : `rotate(${rotation} 0.5 0.5)`;
+  }
+
   shapeFill(element: DesignElement): string | null {
     return isShapeElement(element)
       ? element.backgroundImage

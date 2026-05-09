@@ -1084,6 +1084,10 @@ export class App {
     this.patchSelected({ [property]: value } as Partial<DesignElement>);
   }
 
+  updateSelectedBackgroundRepeat(value: 'repeat' | 'no-repeat'): void {
+    this.patchSelected({ backgroundRepeat: value } as Partial<DesignElement>);
+  }
+
   updateSelectedOptionalString(property: 'backgroundImage', value: string): void {
     this.patchSelected({ [property]: value.trim() || undefined } as Partial<DesignElement>);
   }
@@ -1113,17 +1117,18 @@ export class App {
   }
 
   addGearLabel(gear: GearElement): void {
+    const previousLabel = gear.labels?.at(-1);
     const nextIndex = (gear.labels?.length ?? 0) + 1;
     const label: GearLabel = {
       id: `gear-label-${crypto.randomUUID().slice(0, 8)}`,
       text: `Label ${nextIndex}`,
       angle: 0,
-      offsetFromEdge: Math.round(gear.discRadius * 0.45),
+      offsetFromEdge: previousLabel?.offsetFromEdge ?? Math.round(gear.discRadius * 0.45),
       rotation: 0,
-      fontSize: 4,
-      fontFamily: 'Arial, sans-serif',
-      fontWeight: '400',
-      fill: '#392710',
+      fontSize: previousLabel?.fontSize ?? 4,
+      fontFamily: previousLabel?.fontFamily ?? 'Arial, sans-serif',
+      fontWeight: previousLabel?.fontWeight ?? '400',
+      fill: previousLabel?.fill ?? '#392710',
       align: 'middle',
     };
 

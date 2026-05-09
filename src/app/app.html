@@ -678,8 +678,28 @@
                     />
                   </label>
                 </div>
-                <label>
+              }
+            </fieldset>
+            <fieldset
+              class="inspector-group collapsible-fieldset"
+              [class.fieldset-collapsed]="isFieldsetCollapsed('shape-background')"
+            >
+              <legend>
+                <button
+                  type="button"
+                  class="fieldset-toggle"
+                  [attr.aria-expanded]="!isFieldsetCollapsed('shape-background')"
+                  (click)="toggleFieldset('shape-background')"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">{{
+                    isFieldsetCollapsed('shape-background') ? 'chevron_right' : 'expand_more'
+                  }}</span>
                   Background image
+                </button>
+              </legend>
+              @if (!isFieldsetCollapsed('shape-background')) {
+                <label>
+                  Image
                   <input
                     type="text"
                     [ngModel]="selected.backgroundImage ?? ''"
@@ -687,6 +707,55 @@
                     (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
                   />
                 </label>
+                <div class="field-grid">
+                  <label>
+                    Position X (%)
+                    <input
+                      type="number"
+                      step="1"
+                      [ngModel]="selected.backgroundPositionX ?? 0"
+                      (ngModelChange)="updateSelectedNumber('backgroundPositionX', $event)"
+                    />
+                  </label>
+                  <label>
+                    Position Y (%)
+                    <input
+                      type="number"
+                      step="1"
+                      [ngModel]="selected.backgroundPositionY ?? 0"
+                      (ngModelChange)="updateSelectedNumber('backgroundPositionY', $event)"
+                    />
+                  </label>
+                  <label>
+                    Scale
+                    <input
+                      type="number"
+                      min="0.05"
+                      step="0.05"
+                      [ngModel]="selected.backgroundScale ?? 1"
+                      (ngModelChange)="updateSelectedNumber('backgroundScale', $event)"
+                    />
+                  </label>
+                  <label>
+                    Rotation
+                    <input
+                      type="number"
+                      step="1"
+                      [ngModel]="selected.backgroundRotation ?? 0"
+                      (ngModelChange)="updateSelectedNumber('backgroundRotation', $event)"
+                    />
+                  </label>
+                  <label>
+                    Repeat
+                    <select
+                      [ngModel]="selected.backgroundRepeat ?? 'no-repeat'"
+                      (ngModelChange)="updateSelectedBackgroundRepeat($event)"
+                    >
+                      <option value="no-repeat">no repeat</option>
+                      <option value="repeat">repeat</option>
+                    </select>
+                  </label>
+                </div>
               }
             </fieldset>
             <fieldset

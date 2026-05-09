@@ -112,8 +112,7 @@ button {
   cursor: pointer;
 }
 
-button:hover,
-button.active {
+button:is(:hover, .active) {
   background: var(--app-hover-bg);
 }
 
@@ -239,6 +238,11 @@ input[type='color'] {
   border-radius: 5px;
 }
 
+.fieldset-toggle {
+  display: flex;
+  align-items: center;
+}
+
 .project-tree {
   width: 100%;
   padding: 0;
@@ -342,8 +346,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   background: transparent;
 }
 
-.tree-icon-button:hover,
-.tree-icon-button.active {
+.tree-icon-button:is(:hover, .active) {
   border-color: var(--app-border);
   background: var(--app-hover-bg);
 }
@@ -397,9 +400,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   background: rgba(31, 37, 34, 0.36);
 }
 
-.page-setup-dialog,
-.import-export-dialog,
-.app-settings-dialog {
+:is(.page-setup-dialog, .import-export-dialog, .app-settings-dialog) {
   box-sizing: border-box;
   max-height: calc(100vh - 32px);
   overflow: auto;
@@ -447,8 +448,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   gap: 12px;
 }
 
-.page-setup-dialog label,
-.page-setup-dialog legend {
+.page-setup-dialog :is(label, legend) {
   font-size: 13px;
   font-weight: 700;
 }
@@ -469,8 +469,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   border: 0;
 }
 
-.page-setup-dialog input,
-.page-setup-dialog select {
+.page-setup-dialog :is(input, select) {
   min-height: 40px;
   border-color: var(--app-dialog-border);
   border-radius: 8px;
@@ -491,9 +490,7 @@ li[aria-expanded='false'] + ul[role='group'] {
   font-weight: 600;
 }
 
-.color-choice input,
-.radio-tile input,
-.checkbox-row input {
+:is(.color-choice, .radio-tile, .checkbox-row) input {
   width: auto;
   min-height: auto;
   padding: 0;

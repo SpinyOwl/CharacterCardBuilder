@@ -64,15 +64,16 @@
             <pattern
               [attr.id]="backgroundPatternId(element)"
               patternUnits="objectBoundingBox"
-              width="1"
-              height="1"
+              [attr.width]="backgroundPatternSize(element)"
+              [attr.height]="backgroundPatternSize(element)"
+              [attr.patternTransform]="backgroundPatternTransform(element)"
             >
               <image
-                x="0"
-                y="0"
-                width="1"
-                height="1"
-                preserveAspectRatio="none"
+                [attr.x]="backgroundImageOffset(element, 'x')"
+                [attr.y]="backgroundImageOffset(element, 'y')"
+                [attr.width]="backgroundImageSize(element)"
+                [attr.height]="backgroundImageSize(element)"
+                preserveAspectRatio="xMidYMid meet"
                 [attr.href]="element.backgroundImage"
               />
             </pattern>

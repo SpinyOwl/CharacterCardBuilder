@@ -33,6 +33,11 @@ export interface ShapeStyle {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
+  backgroundPositionX?: number;
+  backgroundPositionY?: number;
+  backgroundScale?: number;
+  backgroundRotation?: number;
+  backgroundRepeat?: 'repeat' | 'no-repeat';
   interactions?: ShapeInteraction[];
 }
 
