@@ -98,16 +98,17 @@ export class CanvasStageComponent {
       return;
     }
 
-    if (layer.locked || element.locked || !layer.visible || !element.visible) {
+    const hit = this.findEditableElementAtPointer(event) ?? { element, layer };
+    if (hit.layer.locked || hit.element.locked || !hit.layer.visible || !hit.element.visible) {
       return;
     }
 
-    this.state.selectElement(element.id);
+    this.state.selectElement(hit.element.id);
     this.dragState = {
       kind: 'move',
-      elementId: element.id,
+      elementId: hit.element.id,
       startPointer: this.pointerToSvgPoint(event),
-      start: { x: element.x, y: element.y },
+      start: { x: hit.element.x, y: hit.element.y },
     };
   }
 
@@ -286,7 +287,7 @@ export class CanvasStageComponent {
       return;
     }
 
-    const hit = this.findSubtractiveElementAtPointer(event);
+    const hit = this.findEditableElementAtPointer(event);
     if (hit) {
       this.onElementPointerDown(event, hit.element, hit.layer);
       return;
@@ -1156,7 +1157,7 @@ export class CanvasStageComponent {
     return (Math.atan2(pointer.y - point.y, pointer.x - point.x) * 180) / Math.PI;
   }
 
-  private findSubtractiveElementAtPointer(
+  private findEditableElementAtPointer(
     event: PointerEvent,
   ): { layer: Layer; element: DesignElement } | null {
     const point = this.pointerToSvgPoint(event);
@@ -1169,11 +1170,7 @@ export class CanvasStageComponent {
 
       const elements = [...this.allElements(layer.elements)].reverse();
       for (const element of elements) {
-        if (
-          this.isSubtractiveVisible(element) &&
-          !element.locked &&
-          this.isPointInsideElement(point, element)
-        ) {
+        if (element.visible && !element.locked && this.isPointInsideElement(point, element)) {
           return { layer, element };
         }
       }
@@ -1200,9 +1197,22 @@ export class CanvasStageComponent {
       case 'gear':
         return this.isPointInsidePath(localPoint, this.elementPath(element));
       case 'text':
+        return this.isPointInsideSelectionBox(point, element);
       case 'group':
         return false;
     }
+  }
+
+  private isPointInsideSelectionBox(point: Point, element: DesignElement): boolean {
+    const box = this.selectionBox(element);
+    const radians = (-box.rotation * Math.PI) / 180;
+    const dx = point.x - box.x;
+    const dy = point.y - box.y;
+    const local = {
+      x: dx * Math.cos(radians) - dy * Math.sin(radians),
+      y: dx * Math.sin(radians) + dy * Math.cos(radians),
+    };
+    return local.x >= 0 && local.y >= 0 && local.x <= box.width && local.y <= box.height;
   }
 
   private toElementLocalPoint(point: Point, element: DesignElement): Point {
