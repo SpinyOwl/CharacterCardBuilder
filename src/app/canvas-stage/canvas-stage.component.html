@@ -196,6 +196,7 @@
                 class="element"
                 [class.selectable]="state.mode() === 'edit' && !layer.locked && !element.locked"
                 [attr.transform]="renderTransform(element)"
+                [attr.opacity]="element.opacity ?? 1"
                 (pointerdown)="
                   state.mode() === 'view'
                     ? onViewElementPointerDown($event, element)

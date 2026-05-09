@@ -105,6 +105,7 @@ function assertElement(value: unknown): DesignElement {
     visible: value['visible'] !== false,
     locked: value['locked'] === true,
     mode: value['mode'] === 'subtractive' ? 'subtractive' : 'additive',
+    opacity: typeof value['opacity'] === 'number' ? value['opacity'] : 1,
   } as const;
   switch (value['type']) {
     case 'rectangle':

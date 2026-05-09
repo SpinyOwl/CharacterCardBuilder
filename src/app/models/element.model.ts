@@ -25,6 +25,7 @@ export interface BaseElement {
   visible: boolean;
   locked: boolean;
   mode: ElementBooleanMode;
+  opacity?: number;
 }
 
 export interface ShapeStyle {

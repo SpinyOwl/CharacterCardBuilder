@@ -87,3 +87,31 @@ body {
   font-size: 12px;
   font-weight: 700;
 }
+
+.tree-opacity-button {
+  position: relative;
+  touch-action: none;
+}
+
+.tree-opacity-button .opacity-icon {
+  font-size: 19px;
+}
+
+.tree-opacity-button .opacity-value {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  min-width: 14px;
+  padding: 0 1px;
+  border-radius: 2px;
+  color: var(--app-bg);
+  background: var(--app-muted);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 8px;
+  text-align: center;
+}
+
+.tree-opacity-button:hover .opacity-value {
+  background: var(--app-selected-text);
+}

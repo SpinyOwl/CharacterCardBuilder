@@ -399,6 +399,28 @@
                       node.layer.locked ? 'lock' : 'lock_open'
                     }}</span>
                   </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button tree-opacity-button"
+                    [disabled]="node.layer.locked"
+                    [title]="
+                      node.layer.locked
+                        ? 'Unlock layer to change opacity'
+                        : 'Layer opacity: ' + opacityControlLabel(node.layer.opacity)
+                    "
+                    [attr.aria-label]="
+                      node.layer.locked
+                        ? 'Unlock layer to change opacity'
+                        : 'Layer opacity: ' + opacityControlLabel(node.layer.opacity)
+                    "
+                    (pointerdown)="onLayerOpacityPointerDown($event, node.layer)"
+                    (wheel)="onLayerOpacityWheel($event, node.layer)"
+                  >
+                    <span class="material-symbols-outlined opacity-icon" aria-hidden="true">opacity</span>
+                    <span class="opacity-value" aria-hidden="true">{{
+                      opacityControlPercent(node.layer.opacity)
+                    }}</span>
+                  </button>
                 </div>
               } @else if (node.kind === 'element') {
                 <div
@@ -448,6 +470,28 @@
                     (click)="$event.stopPropagation(); deleteElement(node.element)"
                   >
                     <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="tree-icon-button tree-opacity-button"
+                    [disabled]="node.element.locked"
+                    [title]="
+                      node.element.locked
+                        ? 'Unlock element to change opacity'
+                        : 'Element opacity: ' + opacityControlLabel(node.element.opacity)
+                    "
+                    [attr.aria-label]="
+                      node.element.locked
+                        ? 'Unlock element to change opacity'
+                        : 'Element opacity: ' + opacityControlLabel(node.element.opacity)
+                    "
+                    (pointerdown)="onElementOpacityPointerDown($event, node.element)"
+                    (wheel)="onElementOpacityWheel($event, node.element)"
+                  >
+                    <span class="material-symbols-outlined opacity-icon" aria-hidden="true">opacity</span>
+                    <span class="opacity-value" aria-hidden="true">{{
+                      opacityControlPercent(node.element.opacity)
+                    }}</span>
                   </button>
                 </div>
               } @else {
@@ -588,156 +632,213 @@
           </label>
 
           @if (isShapeElement(selected)) {
-            <fieldset class="inspector-group">
-              <legend>Shape style</legend>
-              <div class="field-grid">
-                <label>
-                  Background
-                  <input
-                    type="color"
-                    [ngModel]="selected.fill"
-                    (ngModelChange)="updateSelectedString('fill', $event)"
-                  />
-                </label>
-                <label>
-                  Stroke
-                  <input
-                    type="color"
-                    [ngModel]="selected.stroke"
-                    (ngModelChange)="updateSelectedString('stroke', $event)"
-                  />
-                </label>
-                <label>
-                  Stroke thickness
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    [ngModel]="selected.strokeWidth"
-                    (ngModelChange)="updateSelectedNumber('strokeWidth', $event)"
-                  />
-                </label>
-              </div>
-              <label>
-                Background image
-                <input
-                  type="text"
-                  [ngModel]="selected.backgroundImage ?? ''"
-                  placeholder="Image URL or data URL"
-                  (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
-                />
-              </label>
-            </fieldset>
-            <fieldset class="inspector-group">
-              <legend>Interactions</legend>
-              <div class="button-row">
-                <button type="button" (click)="addRotationInteraction(selected)">
-                  Add rotation point
+            <fieldset
+              class="inspector-group collapsible-fieldset"
+              [class.fieldset-collapsed]="isFieldsetCollapsed('shape-style')"
+            >
+              <legend>
+                <button
+                  type="button"
+                  class="fieldset-toggle"
+                  [attr.aria-expanded]="!isFieldsetCollapsed('shape-style')"
+                  (click)="toggleFieldset('shape-style')"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">{{
+                    isFieldsetCollapsed('shape-style') ? 'chevron_right' : 'expand_more'
+                  }}</span>
+                  Shape style
                 </button>
-                <button type="button" (click)="addSlideInteraction(selected)">Add slide axis</button>
-              </div>
-              @if ((selected.interactions?.length ?? 0) > 0) {
-                @for (interaction of selected.interactions ?? []; track interaction.id) {
-                  <fieldset class="inspector-group nested-inspector-group">
-                    <legend>{{ interaction.name }}</legend>
-                    <label>
-                      Name
-                      <input
-                        [ngModel]="interaction.name"
-                        (ngModelChange)="
-                          updateInteractionString(selected, interaction.id, 'name', $event)
+              </legend>
+              @if (!isFieldsetCollapsed('shape-style')) {
+                <div class="field-grid">
+                  <label>
+                    Background
+                    <input
+                      type="color"
+                      [ngModel]="selected.fill"
+                      (ngModelChange)="updateSelectedString('fill', $event)"
+                    />
+                  </label>
+                  <label>
+                    Stroke
+                    <input
+                      type="color"
+                      [ngModel]="selected.stroke"
+                      (ngModelChange)="updateSelectedString('stroke', $event)"
+                    />
+                  </label>
+                  <label>
+                    Stroke thickness
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      [ngModel]="selected.strokeWidth"
+                      (ngModelChange)="updateSelectedNumber('strokeWidth', $event)"
+                    />
+                  </label>
+                </div>
+                <label>
+                  Background image
+                  <input
+                    type="text"
+                    [ngModel]="selected.backgroundImage ?? ''"
+                    placeholder="Image URL or data URL"
+                    (ngModelChange)="updateSelectedOptionalString('backgroundImage', $event)"
+                  />
+                </label>
+              }
+            </fieldset>
+            <fieldset
+              class="inspector-group collapsible-fieldset"
+              [class.fieldset-collapsed]="isFieldsetCollapsed('shape-interactions')"
+            >
+              <legend>
+                <button
+                  type="button"
+                  class="fieldset-toggle"
+                  [attr.aria-expanded]="!isFieldsetCollapsed('shape-interactions')"
+                  (click)="toggleFieldset('shape-interactions')"
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">{{
+                    isFieldsetCollapsed('shape-interactions') ? 'chevron_right' : 'expand_more'
+                  }}</span>
+                  Interactions
+                </button>
+              </legend>
+              @if (!isFieldsetCollapsed('shape-interactions')) {
+                <div class="button-row">
+                  <button type="button" (click)="addRotationInteraction(selected)">
+                    Add rotation point
+                  </button>
+                  <button type="button" (click)="addSlideInteraction(selected)">Add slide axis</button>
+                </div>
+                @if ((selected.interactions?.length ?? 0) > 0) {
+                  @for (interaction of selected.interactions ?? []; track interaction.id) {
+                  <fieldset
+                    class="inspector-group nested-inspector-group collapsible-fieldset"
+                    [class.fieldset-collapsed]="
+                      isFieldsetCollapsed('interaction-' + interaction.id)
+                    "
+                  >
+                    <legend>
+                      <button
+                        type="button"
+                        class="fieldset-toggle"
+                        [attr.aria-expanded]="
+                          !isFieldsetCollapsed('interaction-' + interaction.id)
                         "
-                      />
-                    </label>
-                    <label class="checkbox-row compact-checkbox-row">
-                      <input
-                        type="checkbox"
-                        [ngModel]="interaction.visible"
-                        (ngModelChange)="updateInteractionVisible(selected, interaction, $event)"
-                      />
-                      Show guide
-                    </label>
-                    @switch (interaction.type) {
-                      @case ('rotation') {
-                        <div class="field-grid">
-                          <label>
-                            Local pivot X
-                            <input
-                              type="number"
-                              [ngModel]="interaction.pivotX"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'pivotX', $event)
-                              "
-                            />
-                          </label>
-                          <label>
-                            Local pivot Y
-                            <input
-                              type="number"
-                              [ngModel]="interaction.pivotY"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'pivotY', $event)
-                              "
-                            />
-                          </label>
-                        </div>
+                        (click)="toggleFieldset('interaction-' + interaction.id)"
+                      >
+                        <span class="material-symbols-outlined" aria-hidden="true">{{
+                          isFieldsetCollapsed('interaction-' + interaction.id)
+                            ? 'chevron_right'
+                            : 'expand_more'
+                        }}</span>
+                        {{ interaction.name }}
+                      </button>
+                    </legend>
+                    @if (!isFieldsetCollapsed('interaction-' + interaction.id)) {
+                      <label>
+                        Name
+                        <input
+                          [ngModel]="interaction.name"
+                          (ngModelChange)="
+                            updateInteractionString(selected, interaction.id, 'name', $event)
+                          "
+                        />
+                      </label>
+                      <label class="checkbox-row compact-checkbox-row">
+                        <input
+                          type="checkbox"
+                          [ngModel]="interaction.visible"
+                          (ngModelChange)="updateInteractionVisible(selected, interaction, $event)"
+                        />
+                        Show guide
+                      </label>
+                      @switch (interaction.type) {
+                        @case ('rotation') {
+                          <div class="field-grid">
+                            <label>
+                              Local pivot X
+                              <input
+                                type="number"
+                                [ngModel]="interaction.pivotX"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'pivotX', $event)
+                                "
+                              />
+                            </label>
+                            <label>
+                              Local pivot Y
+                              <input
+                                type="number"
+                                [ngModel]="interaction.pivotY"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'pivotY', $event)
+                                "
+                              />
+                            </label>
+                          </div>
+                        }
+                        @case ('slide') {
+                          <div class="field-grid">
+                            <label>
+                              Local start X
+                              <input
+                                type="number"
+                                [ngModel]="interaction.startX"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'startX', $event)
+                                "
+                              />
+                            </label>
+                            <label>
+                              Local start Y
+                              <input
+                                type="number"
+                                [ngModel]="interaction.startY"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'startY', $event)
+                                "
+                              />
+                            </label>
+                            <label>
+                              Local end X
+                              <input
+                                type="number"
+                                [ngModel]="interaction.endX"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'endX', $event)
+                                "
+                              />
+                            </label>
+                            <label>
+                              Local end Y
+                              <input
+                                type="number"
+                                [ngModel]="interaction.endY"
+                                (ngModelChange)="
+                                  updateInteractionNumber(selected, interaction.id, 'endY', $event)
+                                "
+                              />
+                            </label>
+                          </div>
+                        }
                       }
-                      @case ('slide') {
-                        <div class="field-grid">
-                          <label>
-                            Local start X
-                            <input
-                              type="number"
-                              [ngModel]="interaction.startX"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'startX', $event)
-                              "
-                            />
-                          </label>
-                          <label>
-                            Local start Y
-                            <input
-                              type="number"
-                              [ngModel]="interaction.startY"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'startY', $event)
-                              "
-                            />
-                          </label>
-                          <label>
-                            Local end X
-                            <input
-                              type="number"
-                              [ngModel]="interaction.endX"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'endX', $event)
-                              "
-                            />
-                          </label>
-                          <label>
-                            Local end Y
-                            <input
-                              type="number"
-                              [ngModel]="interaction.endY"
-                              (ngModelChange)="
-                                updateInteractionNumber(selected, interaction.id, 'endY', $event)
-                              "
-                            />
-                          </label>
-                        </div>
-                      }
+                      <button
+                        type="button"
+                        class="danger-button"
+                        (click)="deleteInteraction(selected, interaction)"
+                      >
+                        Delete interaction
+                      </button>
                     }
-                    <button
-                      type="button"
-                      class="danger-button"
-                      (click)="deleteInteraction(selected, interaction)"
-                    >
-                      Delete interaction
-                    </button>
                   </fieldset>
+                  }
+                } @else {
+                  <p class="muted">No interactions.</p>
                 }
-              } @else {
-                <p class="muted">No interactions.</p>
               }
             </fieldset>
           }
@@ -799,235 +900,286 @@
                     (ngModelChange)="updateSelectedNumber('currentRotation', $event)"
                 /></label>
               </div>
-              <fieldset class="inspector-group">
-                <legend>Center dot</legend>
-                <div class="field-grid">
-                  <label>
-                    Radius
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      [ngModel]="selected.centerDotRadius"
-                      (ngModelChange)="updateSelectedNumber('centerDotRadius', $event)"
-                    />
-                  </label>
-                  <label>
-                    Fill
-                    <input
-                      type="color"
-                      [ngModel]="selected.centerDotFill"
-                      (ngModelChange)="updateSelectedString('centerDotFill', $event)"
-                    />
-                  </label>
-                  <label>
-                    Stroke
-                    <input
-                      type="color"
-                      [ngModel]="selected.centerDotStroke"
-                      (ngModelChange)="updateSelectedString('centerDotStroke', $event)"
-                    />
-                  </label>
-                  <label>
-                    Stroke thickness
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      [ngModel]="selected.centerDotStrokeWidth"
-                      (ngModelChange)="updateSelectedNumber('centerDotStrokeWidth', $event)"
-                    />
-                  </label>
-                </div>
+              <fieldset
+                class="inspector-group collapsible-fieldset"
+                [class.fieldset-collapsed]="isFieldsetCollapsed('gear-center-dot')"
+              >
+                <legend>
+                  <button
+                    type="button"
+                    class="fieldset-toggle"
+                    [attr.aria-expanded]="!isFieldsetCollapsed('gear-center-dot')"
+                    (click)="toggleFieldset('gear-center-dot')"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      isFieldsetCollapsed('gear-center-dot') ? 'chevron_right' : 'expand_more'
+                    }}</span>
+                    Center dot
+                  </button>
+                </legend>
+                @if (!isFieldsetCollapsed('gear-center-dot')) {
+                  <div class="field-grid">
+                    <label>
+                      Radius
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        [ngModel]="selected.centerDotRadius"
+                        (ngModelChange)="updateSelectedNumber('centerDotRadius', $event)"
+                      />
+                    </label>
+                    <label>
+                      Fill
+                      <input
+                        type="color"
+                        [ngModel]="selected.centerDotFill"
+                        (ngModelChange)="updateSelectedString('centerDotFill', $event)"
+                      />
+                    </label>
+                    <label>
+                      Stroke
+                      <input
+                        type="color"
+                        [ngModel]="selected.centerDotStroke"
+                        (ngModelChange)="updateSelectedString('centerDotStroke', $event)"
+                      />
+                    </label>
+                    <label>
+                      Stroke thickness
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        [ngModel]="selected.centerDotStrokeWidth"
+                        (ngModelChange)="updateSelectedNumber('centerDotStrokeWidth', $event)"
+                      />
+                    </label>
+                  </div>
+                }
               </fieldset>
-              <fieldset class="inspector-group">
-                <legend>Gear labels</legend>
-                <button type="button" (click)="addGearLabel(selected)">
-                  Add label
-                </button>
-                @if ((selected.labels?.length ?? 0) > 0) {
-                  <label>
-                    Label
-                    <select
-                      [ngModel]="selectedGearLabel(selected)?.id"
-                      (ngModelChange)="selectGearLabel($event)"
-                    >
-                      @for (label of selected.labels ?? []; track label.id) {
-                        <option [value]="label.id">{{ label.text }}</option>
-                      }
-                    </select>
-                  </label>
-                  @if (selectedGearLabel(selected); as label) {
+              <fieldset
+                class="inspector-group collapsible-fieldset"
+                [class.fieldset-collapsed]="isFieldsetCollapsed('gear-labels')"
+              >
+                <legend>
+                  <button
+                    type="button"
+                    class="fieldset-toggle"
+                    [attr.aria-expanded]="!isFieldsetCollapsed('gear-labels')"
+                    (click)="toggleFieldset('gear-labels')"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      isFieldsetCollapsed('gear-labels') ? 'chevron_right' : 'expand_more'
+                    }}</span>
+                    Gear labels
+                  </button>
+                </legend>
+                @if (!isFieldsetCollapsed('gear-labels')) {
+                  <button type="button" (click)="addGearLabel(selected)">
+                    Add label
+                  </button>
+                  @if ((selected.labels?.length ?? 0) > 0) {
                     <label>
-                      Text
-                      <input
-                        type="text"
-                        [ngModel]="label.text"
-                        (ngModelChange)="updateGearLabelString(selected, label.id, 'text', $event)"
-                      />
+                      Label
+                      <select
+                        [ngModel]="selectedGearLabel(selected)?.id"
+                        (ngModelChange)="selectGearLabel($event)"
+                      >
+                        @for (label of selected.labels ?? []; track label.id) {
+                          <option [value]="label.id">{{ label.text }}</option>
+                        }
+                      </select>
                     </label>
-                    <div class="field-grid">
+                    @if (selectedGearLabel(selected); as label) {
                       <label>
-                        Angle
+                        Text
                         <input
-                          type="number"
-                          [ngModel]="label.angle"
-                          (ngModelChange)="updateGearLabelNumber(selected, label.id, 'angle', $event)"
+                          type="text"
+                          [ngModel]="label.text"
+                          (ngModelChange)="updateGearLabelString(selected, label.id, 'text', $event)"
                         />
                       </label>
+                      <div class="field-grid">
+                        <label>
+                          Angle
+                          <input
+                            type="number"
+                            [ngModel]="label.angle"
+                            (ngModelChange)="updateGearLabelNumber(selected, label.id, 'angle', $event)"
+                          />
+                        </label>
+                        <label>
+                          Offset
+                          <input
+                            type="number"
+                            [ngModel]="label.offsetFromEdge"
+                            (ngModelChange)="
+                              updateGearLabelNumber(selected, label.id, 'offsetFromEdge', $event)
+                            "
+                          />
+                        </label>
+                        <label>
+                          Rotation
+                          <input
+                            type="number"
+                            [ngModel]="label.rotation"
+                            (ngModelChange)="
+                              updateGearLabelNumber(selected, label.id, 'rotation', $event)
+                            "
+                          />
+                        </label>
+                        <label>
+                          Color
+                          <input
+                            type="color"
+                            [ngModel]="label.fill"
+                            (ngModelChange)="updateGearLabelString(selected, label.id, 'fill', $event)"
+                          />
+                        </label>
+                        <label>
+                          Size
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            [ngModel]="label.fontSize"
+                            (ngModelChange)="
+                              updateGearLabelNumber(selected, label.id, 'fontSize', $event)
+                            "
+                          />
+                        </label>
+                        <label>
+                          Weight
+                          <select
+                            [ngModel]="label.fontWeight"
+                            (ngModelChange)="
+                              updateGearLabelString(selected, label.id, 'fontWeight', $event)
+                            "
+                          >
+                            <option value="300">Light</option>
+                            <option value="400">Regular</option>
+                            <option value="600">Semi-bold</option>
+                            <option value="700">Bold</option>
+                            <option value="900">Black</option>
+                          </select>
+                        </label>
+                        <label>
+                          Align
+                          <select
+                            [ngModel]="label.align"
+                            (ngModelChange)="updateGearLabelAlign(selected, label.id, $event)"
+                          >
+                            <option value="start">Left</option>
+                            <option value="middle">Center</option>
+                            <option value="end">Right</option>
+                          </select>
+                        </label>
+                      </div>
                       <label>
-                        Offset
+                        Font family
                         <input
-                          type="number"
-                          [ngModel]="label.offsetFromEdge"
+                          type="text"
+                          [ngModel]="label.fontFamily"
                           (ngModelChange)="
-                            updateGearLabelNumber(selected, label.id, 'offsetFromEdge', $event)
+                            updateGearLabelString(selected, label.id, 'fontFamily', $event)
                           "
                         />
                       </label>
-                      <label>
-                        Rotation
-                        <input
-                          type="number"
-                          [ngModel]="label.rotation"
-                          (ngModelChange)="
-                            updateGearLabelNumber(selected, label.id, 'rotation', $event)
-                          "
-                        />
-                      </label>
-                      <label>
-                        Color
-                        <input
-                          type="color"
-                          [ngModel]="label.fill"
-                          (ngModelChange)="updateGearLabelString(selected, label.id, 'fill', $event)"
-                        />
-                      </label>
-                      <label>
-                        Size
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          [ngModel]="label.fontSize"
-                          (ngModelChange)="
-                            updateGearLabelNumber(selected, label.id, 'fontSize', $event)
-                          "
-                        />
-                      </label>
-                      <label>
-                        Weight
-                        <select
-                          [ngModel]="label.fontWeight"
-                          (ngModelChange)="
-                            updateGearLabelString(selected, label.id, 'fontWeight', $event)
-                          "
-                        >
-                          <option value="300">Light</option>
-                          <option value="400">Regular</option>
-                          <option value="600">Semi-bold</option>
-                          <option value="700">Bold</option>
-                          <option value="900">Black</option>
-                        </select>
-                      </label>
-                      <label>
-                        Align
-                        <select
-                          [ngModel]="label.align"
-                          (ngModelChange)="updateGearLabelAlign(selected, label.id, $event)"
-                        >
-                          <option value="start">Left</option>
-                          <option value="middle">Center</option>
-                          <option value="end">Right</option>
-                        </select>
-                      </label>
-                    </div>
-                    <label>
-                      Font family
-                      <input
-                        type="text"
-                        [ngModel]="label.fontFamily"
-                        (ngModelChange)="
-                          updateGearLabelString(selected, label.id, 'fontFamily', $event)
-                        "
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      class="danger-button"
-                      (click)="deleteGearLabel(selected, label.id)"
-                    >
-                      Delete label
-                    </button>
+                      <button
+                        type="button"
+                        class="danger-button"
+                        (click)="deleteGearLabel(selected, label.id)"
+                      >
+                        Delete label
+                      </button>
+                    }
+                  } @else {
+                    <p class="muted">No labels.</p>
                   }
-                } @else {
-                  <p class="muted">No labels.</p>
                 }
               </fieldset>
             }
             @case ('text') {
-              <fieldset class="inspector-group">
-                <legend>Text style</legend>
-                <label>
-                  Text
-                  <input
-                    type="text"
-                    [ngModel]="selected.text"
-                    (ngModelChange)="updateSelectedString('text', $event)"
-                  />
-                </label>
-                <div class="field-grid">
+              <fieldset
+                class="inspector-group collapsible-fieldset"
+                [class.fieldset-collapsed]="isFieldsetCollapsed('text-style')"
+              >
+                <legend>
+                  <button
+                    type="button"
+                    class="fieldset-toggle"
+                    [attr.aria-expanded]="!isFieldsetCollapsed('text-style')"
+                    (click)="toggleFieldset('text-style')"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">{{
+                      isFieldsetCollapsed('text-style') ? 'chevron_right' : 'expand_more'
+                    }}</span>
+                    Text style
+                  </button>
+                </legend>
+                @if (!isFieldsetCollapsed('text-style')) {
                   <label>
-                    Color
+                    Text
                     <input
-                      type="color"
-                      [ngModel]="selected.fill"
-                      (ngModelChange)="updateSelectedString('fill', $event)"
+                      type="text"
+                      [ngModel]="selected.text"
+                      (ngModelChange)="updateSelectedString('text', $event)"
                     />
                   </label>
+                  <div class="field-grid">
+                    <label>
+                      Color
+                      <input
+                        type="color"
+                        [ngModel]="selected.fill"
+                        (ngModelChange)="updateSelectedString('fill', $event)"
+                      />
+                    </label>
+                    <label>
+                      Size
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        [ngModel]="selected.fontSize"
+                        (ngModelChange)="updateSelectedNumber('fontSize', $event)"
+                      />
+                    </label>
+                    <label>
+                      Weight
+                      <select
+                        [ngModel]="selected.fontWeight"
+                        (ngModelChange)="updateSelectedString('fontWeight', $event)"
+                      >
+                        <option value="300">Light</option>
+                        <option value="400">Regular</option>
+                        <option value="600">Semi-bold</option>
+                        <option value="700">Bold</option>
+                        <option value="900">Black</option>
+                      </select>
+                    </label>
+                    <label>
+                      Align
+                      <select
+                        [ngModel]="selected.align"
+                        (ngModelChange)="updateSelectedTextAlign($event)"
+                      >
+                        <option value="start">Left</option>
+                        <option value="middle">Center</option>
+                        <option value="end">Right</option>
+                      </select>
+                    </label>
+                  </div>
                   <label>
-                    Size
+                    Font family
                     <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      [ngModel]="selected.fontSize"
-                      (ngModelChange)="updateSelectedNumber('fontSize', $event)"
+                      type="text"
+                      [ngModel]="selected.fontFamily"
+                      (ngModelChange)="updateSelectedString('fontFamily', $event)"
                     />
                   </label>
-                  <label>
-                    Weight
-                    <select
-                      [ngModel]="selected.fontWeight"
-                      (ngModelChange)="updateSelectedString('fontWeight', $event)"
-                    >
-                      <option value="300">Light</option>
-                      <option value="400">Regular</option>
-                      <option value="600">Semi-bold</option>
-                      <option value="700">Bold</option>
-                      <option value="900">Black</option>
-                    </select>
-                  </label>
-                  <label>
-                    Align
-                    <select
-                      [ngModel]="selected.align"
-                      (ngModelChange)="updateSelectedTextAlign($event)"
-                    >
-                      <option value="start">Left</option>
-                      <option value="middle">Center</option>
-                      <option value="end">Right</option>
-                    </select>
-                  </label>
-                </div>
-                <label>
-                  Font family
-                  <input
-                    type="text"
-                    [ngModel]="selected.fontFamily"
-                    (ngModelChange)="updateSelectedString('fontFamily', $event)"
-                  />
-                </label>
+                }
               </fieldset>
             }
             @case ('group') {
@@ -1116,38 +1268,55 @@
           </select>
         </label>
 
-        <fieldset class="settings-group">
-          <legend>Selection outline</legend>
-          <div class="field-grid">
-            <label>
-              Color
-              <input
-                type="color"
-                [ngModel]="appSettings.selectionOutlineColor()"
-                (ngModelChange)="updateSelectionOutlineColor($event)"
-              />
-            </label>
-            <label>
-              Thickness
-              <input
-                type="number"
-                min="0.1"
-                step="0.1"
-                [ngModel]="appSettings.selectionOutlineThickness()"
-                (ngModelChange)="updateSelectionOutlineNumber('selectionOutlineThickness', $event)"
-              />
-            </label>
-            <label>
-              Handles size
-              <input
-                type="number"
-                min="0.5"
-                step="0.1"
-                [ngModel]="appSettings.selectionHandleSize()"
-                (ngModelChange)="updateSelectionOutlineNumber('selectionHandleSize', $event)"
-              />
-            </label>
-          </div>
+        <fieldset
+          class="settings-group collapsible-fieldset"
+          [class.fieldset-collapsed]="isFieldsetCollapsed('settings-selection-outline')"
+        >
+          <legend>
+            <button
+              type="button"
+              class="fieldset-toggle"
+              [attr.aria-expanded]="!isFieldsetCollapsed('settings-selection-outline')"
+              (click)="toggleFieldset('settings-selection-outline')"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">{{
+                isFieldsetCollapsed('settings-selection-outline') ? 'chevron_right' : 'expand_more'
+              }}</span>
+              Selection outline
+            </button>
+          </legend>
+          @if (!isFieldsetCollapsed('settings-selection-outline')) {
+            <div class="field-grid">
+              <label>
+                Color
+                <input
+                  type="color"
+                  [ngModel]="appSettings.selectionOutlineColor()"
+                  (ngModelChange)="updateSelectionOutlineColor($event)"
+                />
+              </label>
+              <label>
+                Thickness
+                <input
+                  type="number"
+                  min="0.1"
+                  step="0.1"
+                  [ngModel]="appSettings.selectionOutlineThickness()"
+                  (ngModelChange)="updateSelectionOutlineNumber('selectionOutlineThickness', $event)"
+                />
+              </label>
+              <label>
+                Handles size
+                <input
+                  type="number"
+                  min="0.5"
+                  step="0.1"
+                  [ngModel]="appSettings.selectionHandleSize()"
+                  (ngModelChange)="updateSelectionOutlineNumber('selectionHandleSize', $event)"
+                />
+              </label>
+            </div>
+          }
         </fieldset>
 
         <footer class="dialog-actions">

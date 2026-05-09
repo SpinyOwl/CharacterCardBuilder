@@ -185,13 +185,10 @@ button.active {
 .panel {
   position: relative;
   min-height: 0;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-}
-
-.panel {
   overflow: auto;
   padding: 12px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
 }
 
 .panel-section + .panel-section {
@@ -328,7 +325,7 @@ li[aria-expanded='false'] + ul[role='group'] {
 
 .tree-controls {
   display: grid;
-  grid-template-columns: repeat(3, 22px);
+  grid-template-columns: repeat(4, 22px);
   gap: 2px;
   margin-left: auto;
 }

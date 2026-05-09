@@ -95,6 +95,13 @@ type ProjectTreeDropTarget = {
 
 type SidePanel = 'left' | 'right';
 
+type OpacityDragState = {
+  kind: 'layer' | 'element';
+  id: string;
+  startY: number;
+  startOpacity: number;
+};
+
 const DEFAULT_SIDE_PANEL_WIDTH = 320;
 const MIN_SIDE_PANEL_WIDTH = 180;
 const MAX_SIDE_PANEL_WIDTH = 520;
@@ -144,7 +151,9 @@ export class App {
   readonly isProjectTreeLayerDragActive = signal(false);
   readonly leftPanelWidth = signal(DEFAULT_SIDE_PANEL_WIDTH);
   readonly rightPanelWidth = signal(DEFAULT_SIDE_PANEL_WIDTH);
+  readonly collapsedFieldsets = signal<ReadonlySet<string>>(new Set());
   private projectTreeDragData: ProjectTreeDragData | null = null;
+  private opacityDrag: OpacityDragState | null = null;
   private sidePanelResize:
     | {
         panel: SidePanel;
@@ -249,6 +258,25 @@ export class App {
     window.removeEventListener('pointermove', this.onPanelResizePointerMove);
   };
 
+  private readonly onOpacityPointerMove = (event: PointerEvent): void => {
+    if (!this.opacityDrag) {
+      return;
+    }
+
+    event.preventDefault();
+    const delta = (this.opacityDrag.startY - event.clientY) / 100;
+    this.updateOpacityTarget(
+      this.opacityDrag.kind,
+      this.opacityDrag.id,
+      this.opacityDrag.startOpacity + delta,
+    );
+  };
+
+  private readonly onOpacityPointerUp = (): void => {
+    this.opacityDrag = null;
+    window.removeEventListener('pointermove', this.onOpacityPointerMove);
+  };
+
   setMode(mode: 'edit' | 'view'): void {
     this.state.setMode(mode);
   }
@@ -320,6 +348,22 @@ export class App {
 
   closeSettings(): void {
     this.isSettingsOpen.set(false);
+  }
+
+  isFieldsetCollapsed(fieldsetId: string): boolean {
+    return this.collapsedFieldsets().has(fieldsetId);
+  }
+
+  toggleFieldset(fieldsetId: string): void {
+    this.collapsedFieldsets.update((collapsed) => {
+      const next = new Set(collapsed);
+      if (next.has(fieldsetId)) {
+        next.delete(fieldsetId);
+      } else {
+        next.add(fieldsetId);
+      }
+      return next;
+    });
   }
 
   updateApplicationTheme(theme: ApplicationTheme): void {
@@ -485,6 +529,14 @@ export class App {
     this.rightPanelWidth.set(width);
   }
 
+  private normalizedOpacity(rawValue: string | number): number {
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return 1;
+    }
+    return Math.min(1, Math.max(0, value));
+  }
+
   onProjectTreeSelectionChange(values: string[]): void {
     const value = values[0] ?? null;
     if (!value) {
@@ -518,11 +570,29 @@ export class App {
     this.refreshYaml();
   }
 
+  updateLayerOpacity(layer: Layer, rawValue: string | number): void {
+    if (layer.locked) {
+      return;
+    }
+    this.state.updateLayer(layer.id, { opacity: this.normalizedOpacity(rawValue) });
+    this.refreshYaml();
+  }
+
   toggleElementVisible(element: DesignElement, visible: boolean): void {
     this.state.updateElement(element.id, { visible } as Partial<DesignElement>);
     if (!visible && this.state.selectedElementId() === element.id) {
       this.state.selectElement(null);
     }
+    this.refreshYaml();
+  }
+
+  updateElementOpacity(element: DesignElement, rawValue: string | number): void {
+    if (element.locked) {
+      return;
+    }
+    this.state.updateElement(element.id, {
+      opacity: this.normalizedOpacity(rawValue),
+    } as Partial<DesignElement>);
     this.refreshYaml();
   }
 
@@ -536,6 +606,79 @@ export class App {
 
   deleteElement(element: DesignElement): void {
     this.state.deleteElement(element.id);
+    this.refreshYaml();
+  }
+
+  opacityControlPercent(opacity: number | undefined): number {
+    return Math.round((opacity ?? 1) * 100);
+  }
+
+  opacityControlLabel(opacity: number | undefined): string {
+    return `${this.opacityControlPercent(opacity)}%`;
+  }
+
+  onLayerOpacityPointerDown(event: PointerEvent, layer: Layer): void {
+    if (layer.locked) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.opacityDrag = {
+      kind: 'layer',
+      id: layer.id,
+      startY: event.clientY,
+      startOpacity: layer.opacity,
+    };
+    window.addEventListener('pointermove', this.onOpacityPointerMove);
+    window.addEventListener('pointerup', this.onOpacityPointerUp, { once: true });
+  }
+
+  onElementOpacityPointerDown(event: PointerEvent, element: DesignElement): void {
+    if (element.locked) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.opacityDrag = {
+      kind: 'element',
+      id: element.id,
+      startY: event.clientY,
+      startOpacity: element.opacity ?? 1,
+    };
+    window.addEventListener('pointermove', this.onOpacityPointerMove);
+    window.addEventListener('pointerup', this.onOpacityPointerUp, { once: true });
+  }
+
+  onLayerOpacityWheel(event: WheelEvent, layer: Layer): void {
+    if (layer.locked) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.updateLayerOpacity(layer, layer.opacity + this.opacityWheelDelta(event));
+  }
+
+  onElementOpacityWheel(event: WheelEvent, element: DesignElement): void {
+    if (element.locked) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    this.updateElementOpacity(element, (element.opacity ?? 1) + this.opacityWheelDelta(event));
+  }
+
+  private opacityWheelDelta(event: WheelEvent): number {
+    return event.deltaY < 0 ? 0.05 : -0.05;
+  }
+
+  private updateOpacityTarget(kind: 'layer' | 'element', id: string, opacity: number): void {
+    if (kind === 'layer') {
+      this.state.updateLayer(id, { opacity: this.normalizedOpacity(opacity) });
+    } else {
+      this.state.updateElement(id, {
+        opacity: this.normalizedOpacity(opacity),
+      } as Partial<DesignElement>);
+    }
     this.refreshYaml();
   }
 
