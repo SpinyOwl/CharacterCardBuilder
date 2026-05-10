@@ -1,0 +1,317 @@
+version: 1
+canvas:
+  width: 148
+  height: 210
+  unit: mm
+  backgroundColor: "#ffffff"
+pageSetup:
+  paperSize: A5
+  orientation: portrait
+  marginTop: 0
+  marginBottom: 0
+  marginLeft: 0
+  marginRight: 0
+  showPageBorder: true
+layers:
+  - id: layer-60f89cde
+    name: Layer 3
+    visible: true
+    locked: false
+    opacity: 1
+    elements:
+      - id: rectangle-0e3d76fb
+        layerId: layer-60f89cde
+        name: Dark cavern card face copy
+        x: 10
+        y: 10
+        rotation: 0
+        visible: true
+        locked: false
+        mode: additive
+        opacity: 1
+        fill: "#0a1328"
+        stroke: "#59708e"
+        strokeWidth: 1
+        backgroundPositionX: 4
+        backgroundPositionY: 23
+        backgroundScale: 200
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 130
+        height: 90
+        radius: 3
+      - id: mask-slide-strip
+        layerId: layer-second-horizontal-slide
+        name: Horizontal mask slide strip
+        x: 0
+        y: 20
+        rotation: 0
+        visible: true
+        locked: false
+        mode: additive
+        opacity: 1
+        fill: "#13243d"
+        stroke: "#6b7d99"
+        strokeWidth: 0.7
+        backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/masks.png
+        backgroundPositionX: 2
+        backgroundPositionY: 37.8
+        backgroundScale: 400
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions:
+          - id: slide-axis-top-left
+            name: Horizontal slide axis
+            visible: true
+            type: slide
+            startX: -34
+            startY: 0
+            endX: 34
+            endY: 0
+        type: rectangle
+        width: 134
+        height: 16
+        radius: 2
+  - id: layer-first-card-face
+    name: Top layer
+    visible: true
+    locked: false
+    opacity: 1
+    elements:
+      - id: rectangle-897ea826
+        layerId: layer-first-card-face
+        name: Dark cavern card face copy copy copy
+        x: 10
+        y: 110
+        rotation: 0
+        visible: true
+        locked: true
+        mode: additive
+        opacity: 1
+        fill: "#0a1328"
+        stroke: "#59708e"
+        strokeWidth: 1
+        backgroundPositionX: 4
+        backgroundPositionY: 23
+        backgroundScale: 200
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 130
+        height: 90
+        radius: 3
+      - id: upper-half-card-body
+        layerId: layer-first-card-face
+        name: Dark cavern card face
+        x: 10
+        y: 10
+        rotation: 0
+        visible: true
+        locked: false
+        mode: additive
+        opacity: 1
+        fill: "#0a1328"
+        stroke: "#59708e"
+        strokeWidth: 1
+        backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/Card.png
+        backgroundPositionX: 35
+        backgroundPositionY: 49
+        backgroundScale: 400
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 130
+        height: 90
+        radius: 3
+      - id: rectangle-f372f0a5
+        layerId: layer-first-card-face
+        name: Rectangle 12
+        x: 12
+        y: 12
+        rotation: 0
+        visible: true
+        locked: false
+        mode: additive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#ffffff"
+        strokeWidth: 0
+        backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/vessel.png
+        backgroundPositionX: 4
+        backgroundPositionY: 18
+        backgroundScale: 60
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 56
+        height: 42
+        radius: 2
+      - id: window-01
+        layerId: layer-first-card-face
+        name: Mask window 1
+        x: 48
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#e00000"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-d625da30
+        layerId: layer-first-card-face
+        name: Mask window 1 copy
+        x: 60.12
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-a1aeaf15
+        layerId: layer-first-card-face
+        name: Mask window 1 copy
+        x: 72.24
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-7c464b6d
+        layerId: layer-first-card-face
+        name: Mask window 1 copy
+        x: 84.36
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-054018c4
+        layerId: layer-first-card-face
+        name: Mask window 1 copy copy
+        x: 96.48
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-219a07d6
+        layerId: layer-first-card-face
+        name: Mask window 1 copy copy
+        x: 108.6
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+      - id: rectangle-b902a74e
+        layerId: layer-first-card-face
+        name: Mask window 1 copy copy
+        x: 120.72
+        y: 22
+        rotation: 0
+        visible: true
+        locked: false
+        mode: subtractive
+        opacity: 1
+        fill: "#ffffff"
+        stroke: "#002461"
+        strokeWidth: 0.3
+        backgroundPositionX: 0
+        backgroundPositionY: 0
+        backgroundScale: 1
+        backgroundRotation: 0
+        backgroundRepeat: no-repeat
+        interactions: []
+        type: rectangle
+        width: 8
+        height: 12
+        radius: 1
+editor:
+  selectedLayerId: layer-second-horizontal-slide
+  selectedElementId: mask-slide-strip
