@@ -538,13 +538,14 @@ export class App {
   }
 
   async exportPdf(): Promise<void> {
+    this.closeFileMenu();
     const svg = this.canvasStage?.getSvgElement();
     if (!svg) {
       return;
     }
     const canvas = this.state.project().canvas;
     try {
-      await this.exportService.downloadPdfFromSvg(
+      await this.exportService.savePdfFromSvg(
         'layered-card.pdf',
         svg,
         canvas.width,
@@ -559,6 +560,9 @@ export class App {
         window.alert(
           `PDF export cannot include this image URL because its server blocks browser access:\n\n${error.imageUrl}\n\nUse a data URL, same-origin image, or a CORS-enabled image URL.`,
         );
+        return;
+      }
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return;
       }
       throw error;

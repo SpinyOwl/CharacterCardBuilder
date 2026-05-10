@@ -18,9 +18,20 @@
               Open project
             </button>
             <button type="button" role="menuitem" (click)="saveProject()">Save project</button>
+            <div
+              role="separator"
+              aria-hidden="true"
+              style="height: 1px; margin: 4px 2px; background: var(--app-border)"
+            ></div>
+            <button type="button" role="menuitem" (click)="exportPdf()">Export to PDF</button>
             <button type="button" role="menuitem" (click)="showImportExport()">
               Import/export
             </button>
+            <div
+              role="separator"
+              aria-hidden="true"
+              style="height: 1px; margin: 4px 2px; background: var(--app-border)"
+            ></div>
             <button type="button" role="menuitem" (click)="openPageSetup()">Page setup</button>
             <button type="button" role="menuitem" (click)="openSettings()">Settings</button>
           </div>
@@ -34,7 +45,6 @@
       >
         View
       </button>
-      <button ngMenuItem value="export" type="button" (click)="exportPdf()">Export PDF</button>
     </div>
     <input
       #projectInput

@@ -58,23 +58,50 @@ export class ExportService {
     return new XMLSerializer().serializeToString(clone);
   }
 
-  async downloadPdfFromSvg(
+  async savePdfFromSvg(
     filename: string,
     svg: SVGSVGElement,
     widthMillimeters: number,
     heightMillimeters: number,
     layerIds: string[] = [],
   ): Promise<void> {
+    const saveFilePicker = (globalThis.window as WindowWithSaveFilePicker).showSaveFilePicker;
+    if (saveFilePicker) {
+      const handle = await saveFilePicker({
+        suggestedName: filename,
+        types: [
+          {
+            description: 'PDF document',
+            accept: { 'application/pdf': ['.pdf'] },
+          },
+        ],
+      });
+      const blob = await this.createPdfFromSvg(svg, widthMillimeters, heightMillimeters, layerIds);
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    }
+
+    this.downloadBlob(
+      filename,
+      await this.createPdfFromSvg(svg, widthMillimeters, heightMillimeters, layerIds),
+    );
+  }
+
+  private async createPdfFromSvg(
+    svg: SVGSVGElement,
+    widthMillimeters: number,
+    heightMillimeters: number,
+    layerIds: string[],
+  ): Promise<Blob> {
     const exportLayerIds = layerIds.length > 0 ? layerIds : [undefined];
     const pages = await Promise.all(
       exportLayerIds.map((layerId) =>
         this.renderSvgToRgb(svg, widthMillimeters, heightMillimeters, layerId),
       ),
     );
-    this.downloadBlob(
-      filename,
-      this.createImagePdf(pages, widthMillimeters, heightMillimeters),
-    );
+    return this.createImagePdf(pages, widthMillimeters, heightMillimeters);
   }
 
   downloadText(filename: string, content: string, mimeType: string): void {
