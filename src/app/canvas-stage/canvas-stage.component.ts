@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, Input, ViewChild, inject, output } from '@angular/core';
 import {
+  BackgroundImageFit,
   DesignElement,
   GearElement,
   GearLabel,
@@ -325,47 +326,64 @@ export class CanvasStageComponent {
     return `additive-mask-${segment.id}`;
   }
 
-  backgroundPatternId(element: DesignElement): string {
-    return `background-${element.id}`;
+  backgroundClipPathId(element: DesignElement): string {
+    return `background-clip-${element.id}`;
   }
 
-  backgroundPatternSize(element: DesignElement): number {
-    return isShapeElement(element) && element.backgroundRepeat === 'repeat'
-      ? 1 / Math.max(0.05, element.backgroundScale ?? 1)
-      : 1;
-  }
-
-  backgroundImageSize(element: DesignElement): number {
-    return isShapeElement(element)
-      ? this.backgroundPatternSize(element) * Math.max(0.05, element.backgroundScale ?? 1)
-      : 1;
-  }
-
-  backgroundImageOffset(element: DesignElement, axis: 'x' | 'y'): number {
-    if (!isShapeElement(element)) {
-      return 0;
-    }
-    const scale = Math.max(0.05, element.backgroundScale ?? 1);
-    const position = axis === 'x' ? element.backgroundPositionX ?? 0 : element.backgroundPositionY ?? 0;
-    const patternSize = this.backgroundPatternSize(element);
-    const availableSpace = element.backgroundRepeat === 'repeat' ? patternSize : 1 - scale;
-    return (position / 100) * availableSpace;
-  }
-
-  backgroundPatternTransform(element: DesignElement): string | null {
-    if (!isShapeElement(element)) {
-      return null;
-    }
-    const rotation = element.backgroundRotation ?? 0;
-    return rotation === 0 ? null : `rotate(${rotation} 0.5 0.5)`;
+  usesAbsoluteBackground(element: DesignElement): element is ShapeElement & { backgroundImage: string } {
+    return isShapeElement(element) && !!element.backgroundImage;
   }
 
   shapeFill(element: DesignElement): string | null {
-    return isShapeElement(element)
-      ? element.backgroundImage
-        ? `url(#${this.backgroundPatternId(element)})`
-        : element.fill
-      : null;
+    return isShapeElement(element) ? element.fill : null;
+  }
+
+  absoluteBackgroundImageX(element: ShapeElement): number {
+    return this.shapeLocalBounds(element).x + (element.backgroundImageX ?? 0);
+  }
+
+  absoluteBackgroundImageY(element: ShapeElement): number {
+    return this.shapeLocalBounds(element).y + (element.backgroundImageY ?? 0);
+  }
+
+  absoluteBackgroundImageWidth(element: ShapeElement): number {
+    const fallbackWidth = element.backgroundImageWidth ?? this.shapeLocalBounds(element).width;
+    if (element.backgroundImageSizing === 'scale') {
+      const naturalWidth = element.backgroundImageNaturalWidth ?? 0;
+      if (naturalWidth > 0) {
+        return naturalWidth * this.millimetersPerImagePixel() * (element.backgroundImageScale ?? 1);
+      }
+      return fallbackWidth * (element.backgroundImageScale ?? 1);
+    }
+    return fallbackWidth;
+  }
+
+  absoluteBackgroundImageHeight(element: ShapeElement): number {
+    const fallbackHeight = element.backgroundImageHeight ?? this.shapeLocalBounds(element).height;
+    if (element.backgroundImageSizing === 'scale') {
+      const naturalHeight = element.backgroundImageNaturalHeight ?? 0;
+      if (naturalHeight > 0) {
+        return naturalHeight * this.millimetersPerImagePixel() * (element.backgroundImageScale ?? 1);
+      }
+      return fallbackHeight * (element.backgroundImageScale ?? 1);
+    }
+    return fallbackHeight;
+  }
+
+  private millimetersPerImagePixel(): number {
+    const dpi = this.state.project().pageSetup?.dpi ?? 96;
+    return 25.4 / Math.max(1, dpi);
+  }
+
+  absoluteBackgroundPreserveAspectRatio(element: ShapeElement): string {
+    const fit: BackgroundImageFit = element.backgroundImageFit ?? 'stretch';
+    if (fit === 'contain') {
+      return 'xMidYMid meet';
+    }
+    if (fit === 'cover') {
+      return 'xMidYMid slice';
+    }
+    return 'none';
   }
 
   shapeStroke(element: DesignElement): string | null {
@@ -477,6 +495,35 @@ export class CanvasStageComponent {
         };
       case 'group':
         return { x: element.x, y: element.y, width: 0, height: 0, rotation: element.rotation };
+    }
+  }
+
+  private shapeLocalBounds(element: ShapeElement): { x: number; y: number; width: number; height: number } {
+    switch (element.type) {
+      case 'rectangle':
+      case 'triangle':
+        return { x: 0, y: 0, width: element.width, height: element.height };
+      case 'circle':
+        return {
+          x: -element.radius,
+          y: -element.radius,
+          width: element.radius * 2,
+          height: element.radius * 2,
+        };
+      case 'gear': {
+        const radius = element.discRadius + element.toothHeight;
+        return { x: -radius, y: -radius, width: radius * 2, height: radius * 2 };
+      }
+      case 'polygon': {
+        if (element.points.length === 0) {
+          return { x: 0, y: 0, width: 0, height: 0 };
+        }
+        const minX = Math.min(...element.points.map((point) => point.x));
+        const maxX = Math.max(...element.points.map((point) => point.x));
+        const minY = Math.min(...element.points.map((point) => point.y));
+        const maxY = Math.max(...element.points.map((point) => point.y));
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+      }
     }
   }
 

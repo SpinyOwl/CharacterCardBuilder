@@ -16,6 +16,7 @@ export function createDefaultProject(): Project {
       marginBottom: 0,
       marginLeft: 0,
       marginRight: 0,
+      dpi: 96,
       showPageBorder: true,
     },
     layers: [

@@ -11,12 +11,13 @@ pageSetup:
   marginBottom: 0
   marginLeft: 0
   marginRight: 0
+  dpi: 96
   showPageBorder: true
 layers:
   - id: layer-60f89cde
     name: Layer 3
     visible: true
-    locked: false
+    locked: true
     opacity: 1
     elements:
       - id: rectangle-0e3d76fb
@@ -32,11 +33,13 @@ layers:
         fill: "#0a1328"
         stroke: "#59708e"
         strokeWidth: 1
-        backgroundPositionX: 4
-        backgroundPositionY: 23
-        backgroundScale: 200
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
+        backgroundImageX: 0
+        backgroundImageY: 0
+        backgroundImageWidth: 130
+        backgroundImageHeight: 90
+        backgroundImageFit: stretch
+        backgroundImageSizing: dimensions
+        backgroundImageScale: 1
         interactions: []
         type: rectangle
         width: 130
@@ -49,18 +52,22 @@ layers:
         y: 20
         rotation: 0
         visible: true
-        locked: false
+        locked: true
         mode: additive
         opacity: 1
         fill: "#13243d"
         stroke: "#6b7d99"
         strokeWidth: 0.7
         backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/masks.png
-        backgroundPositionX: 2
-        backgroundPositionY: 37.8
-        backgroundScale: 400
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
+        backgroundImageX: -7.8
+        backgroundImageY: -15.3
+        backgroundImageWidth: 134
+        backgroundImageHeight: 16
+        backgroundImageFit: contain
+        backgroundImageSizing: scale
+        backgroundImageScale: 0.7863
+        backgroundImageNaturalWidth: 1920
+        backgroundImageNaturalHeight: 620
         interactions:
           - id: slide-axis-top-left
             name: Horizontal slide axis
@@ -93,11 +100,6 @@ layers:
         fill: "#0a1328"
         stroke: "#59708e"
         strokeWidth: 1
-        backgroundPositionX: 4
-        backgroundPositionY: 23
-        backgroundScale: 200
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 130
@@ -117,11 +119,13 @@ layers:
         stroke: "#59708e"
         strokeWidth: 1
         backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/Card.png
-        backgroundPositionX: 35
-        backgroundPositionY: 49
-        backgroundScale: 400
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
+        backgroundImageX: -130
+        backgroundImageY: -130
+        backgroundImageWidth: 130
+        backgroundImageHeight: 90
+        backgroundImageFit: contain
+        backgroundImageSizing: scale
+        backgroundImageScale: 3.051
         interactions: []
         type: rectangle
         width: 130
@@ -137,15 +141,19 @@ layers:
         locked: false
         mode: additive
         opacity: 1
-        fill: "#ffffff"
-        stroke: "#ffffff"
+        fill: "#ffffff00"
+        stroke: "#ffffff00"
         strokeWidth: 0
         backgroundImage: https://raw.githubusercontent.com/SpinyOwl/CharacterCardBuilder/refs/heads/main/examples/vessel.png
-        backgroundPositionX: 4
-        backgroundPositionY: 18
-        backgroundScale: 60
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
+        backgroundImageX: -3
+        backgroundImageY: -11.4
+        backgroundImageWidth: 56
+        backgroundImageHeight: 42
+        backgroundImageFit: contain
+        backgroundImageSizing: scale
+        backgroundImageScale: 0.901
+        backgroundImageNaturalWidth: 256
+        backgroundImageNaturalHeight: 256
         interactions: []
         type: rectangle
         width: 56
@@ -164,11 +172,6 @@ layers:
         fill: "#e00000"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -187,11 +190,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -210,11 +208,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -233,11 +226,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -256,11 +244,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -279,11 +262,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8
@@ -302,11 +280,6 @@ layers:
         fill: "#ffffff"
         stroke: "#002461"
         strokeWidth: 0.3
-        backgroundPositionX: 0
-        backgroundPositionY: 0
-        backgroundScale: 1
-        backgroundRotation: 0
-        backgroundRepeat: no-repeat
         interactions: []
         type: rectangle
         width: 8

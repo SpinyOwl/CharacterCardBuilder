@@ -1,6 +1,12 @@
 import { Injectable } from '@angular/core';
 import { parse, stringify } from 'yaml';
-import { DesignElement, GearLabel, ShapeInteraction } from '../models/element.model';
+import {
+  BackgroundImageFit,
+  BackgroundImageSizing,
+  DesignElement,
+  GearLabel,
+  ShapeInteraction,
+} from '../models/element.model';
 import { Layer } from '../models/layer.model';
 import { PageOrientation, PageSetup, PaperSize, Project } from '../models/project.model';
 
@@ -71,6 +77,7 @@ function assertPageSetup(value: unknown): PageSetup | undefined {
     marginBottom: optionalNumber(value['marginBottom'], 0),
     marginLeft: optionalNumber(value['marginLeft'], 0),
     marginRight: optionalNumber(value['marginRight'], 0),
+    dpi: optionalPositiveNumber(value['dpi']) ?? 96,
     showPageBorder: value['showPageBorder'] !== false,
   };
 }
@@ -223,11 +230,15 @@ function assertShapeStyle(value: Record<string, unknown>): {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
-  backgroundPositionX: number;
-  backgroundPositionY: number;
-  backgroundScale: number;
-  backgroundRotation: number;
-  backgroundRepeat: 'repeat' | 'no-repeat';
+  backgroundImageX?: number;
+  backgroundImageY?: number;
+  backgroundImageWidth?: number;
+  backgroundImageHeight?: number;
+  backgroundImageFit?: BackgroundImageFit;
+  backgroundImageSizing?: BackgroundImageSizing;
+  backgroundImageScale?: number;
+  backgroundImageNaturalWidth?: number;
+  backgroundImageNaturalHeight?: number;
   interactions: ShapeInteraction[];
 } {
   return {
@@ -238,21 +249,27 @@ function assertShapeStyle(value: Record<string, unknown>): {
       typeof value['backgroundImage'] === 'string' && value['backgroundImage'].trim()
         ? value['backgroundImage']
         : undefined,
-    backgroundPositionX:
-      typeof value['backgroundPositionX'] === 'number' ? value['backgroundPositionX'] : 0,
-    backgroundPositionY:
-      typeof value['backgroundPositionY'] === 'number' ? value['backgroundPositionY'] : 0,
-    backgroundScale:
-      typeof value['backgroundScale'] === 'number' && value['backgroundScale'] > 0
-        ? value['backgroundScale']
-        : 1,
-    backgroundRotation:
-      typeof value['backgroundRotation'] === 'number' ? value['backgroundRotation'] : 0,
-    backgroundRepeat: value['backgroundRepeat'] === 'repeat' ? 'repeat' : 'no-repeat',
+    backgroundImageX: optionalFiniteNumber(value['backgroundImageX']),
+    backgroundImageY: optionalFiniteNumber(value['backgroundImageY']),
+    backgroundImageWidth: optionalPositiveNumber(value['backgroundImageWidth']),
+    backgroundImageHeight: optionalPositiveNumber(value['backgroundImageHeight']),
+    backgroundImageFit: assertBackgroundImageFit(value['backgroundImageFit']),
+    backgroundImageSizing: assertBackgroundImageSizing(value['backgroundImageSizing']),
+    backgroundImageScale: optionalPositiveNumber(value['backgroundImageScale']),
+    backgroundImageNaturalWidth: optionalPositiveNumber(value['backgroundImageNaturalWidth']),
+    backgroundImageNaturalHeight: optionalPositiveNumber(value['backgroundImageNaturalHeight']),
     interactions: Array.isArray(value['interactions'])
       ? value['interactions'].map(assertShapeInteraction)
       : [],
   };
+}
+
+function assertBackgroundImageFit(value: unknown): BackgroundImageFit | undefined {
+  return value === 'stretch' || value === 'contain' || value === 'cover' ? value : undefined;
+}
+
+function assertBackgroundImageSizing(value: unknown): BackgroundImageSizing | undefined {
+  return value === 'dimensions' || value === 'scale' ? value : undefined;
 }
 
 function assertShapeInteraction(value: unknown): ShapeInteraction {
@@ -309,6 +326,14 @@ function requiredNumber(value: unknown, label: string): number {
 
 function optionalNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function optionalFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function optionalPositiveNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
 function stringOrNull(value: unknown): string | null {

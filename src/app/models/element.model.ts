@@ -1,4 +1,6 @@
 export type ElementBooleanMode = 'additive' | 'subtractive';
+export type BackgroundImageFit = 'stretch' | 'contain' | 'cover';
+export type BackgroundImageSizing = 'dimensions' | 'scale';
 
 export type DesignElementType =
   | 'rectangle'
@@ -33,11 +35,15 @@ export interface ShapeStyle {
   stroke: string;
   strokeWidth: number;
   backgroundImage?: string;
-  backgroundPositionX?: number;
-  backgroundPositionY?: number;
-  backgroundScale?: number;
-  backgroundRotation?: number;
-  backgroundRepeat?: 'repeat' | 'no-repeat';
+  backgroundImageX?: number;
+  backgroundImageY?: number;
+  backgroundImageWidth?: number;
+  backgroundImageHeight?: number;
+  backgroundImageFit?: BackgroundImageFit;
+  backgroundImageSizing?: BackgroundImageSizing;
+  backgroundImageScale?: number;
+  backgroundImageNaturalWidth?: number;
+  backgroundImageNaturalHeight?: number;
   interactions?: ShapeInteraction[];
 }
 

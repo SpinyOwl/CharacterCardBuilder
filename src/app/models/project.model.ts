@@ -19,6 +19,7 @@ export interface PageSetup {
   marginBottom: number;
   marginLeft: number;
   marginRight: number;
+  dpi: number;
   showPageBorder: boolean;
 }
 

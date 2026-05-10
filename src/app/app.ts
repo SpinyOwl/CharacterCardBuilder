@@ -6,6 +6,8 @@ import { Toolbar, ToolbarWidget, ToolbarWidgetGroup } from '@angular/aria/toolba
 import { Tree, TreeItem, TreeItemGroup } from '@angular/aria/tree';
 import { CanvasStageComponent } from './canvas-stage/canvas-stage.component';
 import {
+  BackgroundImageFit,
+  BackgroundImageSizing,
   DesignElement,
   DesignElementType,
   GearElement,
@@ -39,6 +41,7 @@ const DEFAULT_PAGE_SETUP: PageSetup = {
   marginBottom: 0,
   marginLeft: 0,
   marginRight: 0,
+  dpi: 96,
   showPageBorder: true,
 };
 
@@ -500,7 +503,10 @@ export class App {
   }
 
   updatePageSetupNumber(
-    property: keyof Pick<PageSetup, 'marginTop' | 'marginBottom' | 'marginLeft' | 'marginRight'>,
+    property: keyof Pick<
+      PageSetup,
+      'marginTop' | 'marginBottom' | 'marginLeft' | 'marginRight' | 'dpi'
+    >,
     value: string | number,
   ): void {
     const numberValue = typeof value === 'number' ? value : Number(value);
@@ -1209,12 +1215,87 @@ export class App {
     this.patchSelected({ [property]: value } as Partial<DesignElement>);
   }
 
-  updateSelectedBackgroundRepeat(value: 'repeat' | 'no-repeat'): void {
-    this.patchSelected({ backgroundRepeat: value } as Partial<DesignElement>);
+  colorInputValue(value: string): string {
+    return this.parseColor(value).hex;
   }
 
-  updateSelectedOptionalString(property: 'backgroundImage', value: string): void {
-    this.patchSelected({ [property]: value.trim() || undefined } as Partial<DesignElement>);
+  colorAlphaPercent(value: string): number {
+    return Math.round(this.parseColor(value).alpha * 100);
+  }
+
+  updateSelectedColorBase(property: 'fill' | 'stroke', value: string): void {
+    const selected = this.state.selectedElement();
+    if (!selected || !isShapeElement(selected)) {
+      return;
+    }
+    const current = this.parseColor(selected[property]);
+    this.patchSelected({ [property]: this.formatColor(value, current.alpha) } as Partial<DesignElement>);
+  }
+
+  updateSelectedColorAlpha(property: 'fill' | 'stroke', rawValue: string | number): void {
+    const selected = this.state.selectedElement();
+    if (!selected || !isShapeElement(selected)) {
+      return;
+    }
+    const value = typeof rawValue === 'number' ? rawValue : Number(rawValue);
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const current = this.parseColor(selected[property]);
+    this.patchSelected({
+      [property]: this.formatColor(current.hex, Math.min(1, Math.max(0, value / 100))),
+    } as Partial<DesignElement>);
+  }
+
+  updateSelectedBackgroundImageFit(value: BackgroundImageFit): void {
+    this.patchSelected({ backgroundImageFit: value } as Partial<DesignElement>);
+  }
+
+  async updateSelectedBackgroundImageSizing(value: BackgroundImageSizing): Promise<void> {
+    const selected = this.state.selectedElement();
+    const dimensions =
+      value === 'scale' && selected && isShapeElement(selected) && selected.backgroundImage
+        ? await this.readImageDimensions(selected.backgroundImage)
+        : null;
+    this.patchSelected({
+      backgroundImageSizing: value,
+      ...(value === 'scale'
+        ? {
+            backgroundImageScale: 1,
+            ...(dimensions && dimensions.width > 0 && dimensions.height > 0
+              ? {
+                  backgroundImageNaturalWidth: dimensions.width,
+                  backgroundImageNaturalHeight: dimensions.height,
+                }
+              : {}),
+          }
+        : {}),
+    } as Partial<DesignElement>);
+  }
+
+  async updateSelectedBackgroundImage(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    await this.updateSelectedOptionalString('backgroundImage', input.value);
+  }
+
+  async updateSelectedOptionalString(property: 'backgroundImage', value: string): Promise<void> {
+    const selected = this.state.selectedElement();
+    const image = value.trim() || undefined;
+    const dimensions = image ? await this.readImageDimensions(image) : null;
+    this.patchSelected({
+      [property]: image,
+      ...(image && selected && isShapeElement(selected)
+        ? {
+            ...(dimensions && dimensions.width > 0 && dimensions.height > 0
+              ? {
+                  backgroundImageNaturalWidth: dimensions.width,
+                  backgroundImageNaturalHeight: dimensions.height,
+                }
+              : {}),
+            ...this.defaultAbsoluteBackgroundSize(selected),
+          }
+        : {}),
+    } as Partial<DesignElement>);
   }
 
   async onBackgroundImageFileSelected(event: Event): Promise<void> {
@@ -1225,7 +1306,20 @@ export class App {
     }
 
     try {
-      this.patchSelected({ backgroundImage: await this.readFileAsDataUrl(file) } as Partial<DesignElement>);
+      const selected = this.state.selectedElement();
+      const backgroundImage = await this.readFileAsDataUrl(file);
+      const dimensions = await this.readImageDimensions(backgroundImage);
+      this.patchSelected({
+        backgroundImage,
+        ...(selected && isShapeElement(selected)
+          ? {
+              backgroundImageNaturalWidth: dimensions.width,
+              backgroundImageNaturalHeight: dimensions.height,
+              backgroundImageScale: selected.backgroundImageScale ?? 1,
+              ...this.defaultAbsoluteBackgroundSize(selected),
+            }
+          : {}),
+      } as Partial<DesignElement>);
     } finally {
       input.value = '';
     }
@@ -1314,6 +1408,47 @@ export class App {
     this.patchGearLabel(gear, labelId, { align });
   }
 
+  private defaultAbsoluteBackgroundSize(element: ShapeElement): Partial<ShapeElement> {
+    if (element.backgroundImageWidth && element.backgroundImageHeight) {
+      return {};
+    }
+
+    const box = this.shapeLocalBounds(element);
+    return {
+      backgroundImageX: element.backgroundImageX ?? 0,
+      backgroundImageY: element.backgroundImageY ?? 0,
+      backgroundImageWidth: element.backgroundImageWidth ?? box.width,
+      backgroundImageHeight: element.backgroundImageHeight ?? box.height,
+      backgroundImageFit: element.backgroundImageFit ?? 'stretch',
+      backgroundImageSizing: element.backgroundImageSizing ?? 'dimensions',
+      backgroundImageScale: element.backgroundImageScale ?? 1,
+    } as Partial<ShapeElement>;
+  }
+
+  private shapeLocalBounds(element: ShapeElement): { width: number; height: number } {
+    switch (element.type) {
+      case 'rectangle':
+      case 'triangle':
+        return { width: element.width, height: element.height };
+      case 'circle':
+        return { width: element.radius * 2, height: element.radius * 2 };
+      case 'gear': {
+        const radius = element.discRadius + element.toothHeight;
+        return { width: radius * 2, height: radius * 2 };
+      }
+      case 'polygon': {
+        if (element.points.length === 0) {
+          return { width: 0, height: 0 };
+        }
+        const minX = Math.min(...element.points.map((point) => point.x));
+        const maxX = Math.max(...element.points.map((point) => point.x));
+        const minY = Math.min(...element.points.map((point) => point.y));
+        const maxY = Math.max(...element.points.map((point) => point.y));
+        return { width: maxX - minX, height: maxY - minY };
+      }
+    }
+  }
+
   updateInteractionString(
     element: ShapeElement,
     interactionId: string,
@@ -1358,6 +1493,61 @@ export class App {
       reader.onerror = () => reject(new Error('Unable to read image file.'));
       reader.readAsDataURL(file);
     });
+  }
+
+  private readImageDimensions(source: string): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+      image.onerror = () => resolve({ width: 0, height: 0 });
+      image.src = source;
+    });
+  }
+
+  private parseColor(value: string): { hex: string; alpha: number } {
+    const color = value.trim();
+    const hexMatch = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.exec(color);
+    if (hexMatch) {
+      const hex = hexMatch[1];
+      if (hex.length === 3 || hex.length === 4) {
+        const red = hex[0] + hex[0];
+        const green = hex[1] + hex[1];
+        const blue = hex[2] + hex[2];
+        const alpha = hex.length === 4 ? parseInt(hex[3] + hex[3], 16) / 255 : 1;
+        return { hex: `#${red}${green}${blue}`.toLowerCase(), alpha };
+      }
+      const alpha = hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1;
+      return { hex: `#${hex.slice(0, 6)}`.toLowerCase(), alpha };
+    }
+
+    const rgbMatch =
+      /^rgba?\(\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)(?:\s*,\s*(\d*(?:\.\d+)?))?\s*\)$/i.exec(
+        color,
+      );
+    if (rgbMatch) {
+      const red = this.colorChannelToHex(Number(rgbMatch[1]));
+      const green = this.colorChannelToHex(Number(rgbMatch[2]));
+      const blue = this.colorChannelToHex(Number(rgbMatch[3]));
+      const alpha = rgbMatch[4] === undefined ? 1 : Math.min(1, Math.max(0, Number(rgbMatch[4])));
+      return { hex: `#${red}${green}${blue}`, alpha };
+    }
+
+    return { hex: '#000000', alpha: 1 };
+  }
+
+  private formatColor(hex: string, alpha: number): string {
+    const parsed = this.parseColor(hex);
+    const normalizedAlpha = Math.min(1, Math.max(0, alpha));
+    if (normalizedAlpha >= 1) {
+      return parsed.hex;
+    }
+    return `${parsed.hex}${this.colorChannelToHex(normalizedAlpha * 255)}`;
+  }
+
+  private colorChannelToHex(value: number): string {
+    return Math.round(Math.min(255, Math.max(0, value)))
+      .toString(16)
+      .padStart(2, '0');
   }
 
   private isEditableShortcutTarget(target: EventTarget | null): boolean {

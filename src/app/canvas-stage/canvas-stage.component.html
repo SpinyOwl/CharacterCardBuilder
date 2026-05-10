@@ -63,23 +63,17 @@
 
       @for (layer of state.visibleLayers(); track layer.id) {
         @for (element of allElements(layer.elements); track element.id) {
-          @if ('backgroundImage' in element && element.backgroundImage) {
-            <pattern
-              [attr.id]="backgroundPatternId(element)"
-              patternUnits="objectBoundingBox"
-              [attr.width]="backgroundPatternSize(element)"
-              [attr.height]="backgroundPatternSize(element)"
-              [attr.patternTransform]="backgroundPatternTransform(element)"
-            >
-              <image
-                [attr.x]="backgroundImageOffset(element, 'x')"
-                [attr.y]="backgroundImageOffset(element, 'y')"
-                [attr.width]="backgroundImageSize(element)"
-                [attr.height]="backgroundImageSize(element)"
-                preserveAspectRatio="xMidYMid meet"
-                [attr.href]="element.backgroundImage"
-              />
-            </pattern>
+          @if (usesAbsoluteBackground(element)) {
+            <clipPath [attr.id]="backgroundClipPathId(element)" clipPathUnits="userSpaceOnUse">
+              @switch (element.type) {
+                @case ('circle') {
+                  <circle cx="0" cy="0" [attr.r]="element.radius" />
+                }
+                @default {
+                  <path [attr.d]="elementPath(element)" />
+                }
+              }
+            </clipPath>
           }
         }
       }
@@ -212,9 +206,27 @@
                     <path
                       [attr.d]="elementPath(element)"
                       [attr.fill]="shapeFill(element)"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.stroke]="usesAbsoluteBackground(element) ? null : element.stroke"
+                      [attr.stroke-width]="usesAbsoluteBackground(element) ? null : element.strokeWidth"
                     />
+                    @if (usesAbsoluteBackground(element)) {
+                      <g [attr.clip-path]="'url(#' + backgroundClipPathId(element) + ')'">
+                        <image
+                          [attr.x]="absoluteBackgroundImageX(element)"
+                          [attr.y]="absoluteBackgroundImageY(element)"
+                          [attr.width]="absoluteBackgroundImageWidth(element)"
+                          [attr.height]="absoluteBackgroundImageHeight(element)"
+                          [attr.preserveAspectRatio]="absoluteBackgroundPreserveAspectRatio(element)"
+                          [attr.href]="element.backgroundImage"
+                        />
+                      </g>
+                      <path
+                        [attr.d]="elementPath(element)"
+                        fill="none"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
                   }
                   @case ('circle') {
                     <circle
@@ -222,33 +234,107 @@
                       cy="0"
                       [attr.r]="element.radius"
                       [attr.fill]="shapeFill(element)"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.stroke]="usesAbsoluteBackground(element) ? null : element.stroke"
+                      [attr.stroke-width]="usesAbsoluteBackground(element) ? null : element.strokeWidth"
                     />
+                    @if (usesAbsoluteBackground(element)) {
+                      <g [attr.clip-path]="'url(#' + backgroundClipPathId(element) + ')'">
+                        <image
+                          [attr.x]="absoluteBackgroundImageX(element)"
+                          [attr.y]="absoluteBackgroundImageY(element)"
+                          [attr.width]="absoluteBackgroundImageWidth(element)"
+                          [attr.height]="absoluteBackgroundImageHeight(element)"
+                          [attr.preserveAspectRatio]="absoluteBackgroundPreserveAspectRatio(element)"
+                          [attr.href]="element.backgroundImage"
+                        />
+                      </g>
+                      <circle
+                        cx="0"
+                        cy="0"
+                        [attr.r]="element.radius"
+                        fill="none"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
                   }
                   @case ('triangle') {
                     <path
                       [attr.d]="elementPath(element)"
                       [attr.fill]="shapeFill(element)"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.stroke]="usesAbsoluteBackground(element) ? null : element.stroke"
+                      [attr.stroke-width]="usesAbsoluteBackground(element) ? null : element.strokeWidth"
                     />
+                    @if (usesAbsoluteBackground(element)) {
+                      <g [attr.clip-path]="'url(#' + backgroundClipPathId(element) + ')'">
+                        <image
+                          [attr.x]="absoluteBackgroundImageX(element)"
+                          [attr.y]="absoluteBackgroundImageY(element)"
+                          [attr.width]="absoluteBackgroundImageWidth(element)"
+                          [attr.height]="absoluteBackgroundImageHeight(element)"
+                          [attr.preserveAspectRatio]="absoluteBackgroundPreserveAspectRatio(element)"
+                          [attr.href]="element.backgroundImage"
+                        />
+                      </g>
+                      <path
+                        [attr.d]="elementPath(element)"
+                        fill="none"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
                   }
                   @case ('polygon') {
                     <path
                       [attr.d]="elementPath(element)"
                       [attr.fill]="shapeFill(element)"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.stroke]="usesAbsoluteBackground(element) ? null : element.stroke"
+                      [attr.stroke-width]="usesAbsoluteBackground(element) ? null : element.strokeWidth"
                     />
+                    @if (usesAbsoluteBackground(element)) {
+                      <g [attr.clip-path]="'url(#' + backgroundClipPathId(element) + ')'">
+                        <image
+                          [attr.x]="absoluteBackgroundImageX(element)"
+                          [attr.y]="absoluteBackgroundImageY(element)"
+                          [attr.width]="absoluteBackgroundImageWidth(element)"
+                          [attr.height]="absoluteBackgroundImageHeight(element)"
+                          [attr.preserveAspectRatio]="absoluteBackgroundPreserveAspectRatio(element)"
+                          [attr.href]="element.backgroundImage"
+                        />
+                      </g>
+                      <path
+                        [attr.d]="elementPath(element)"
+                        fill="none"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
                   }
                   @case ('gear') {
                     <path
                       [attr.d]="elementPath(element)"
                       [attr.fill]="shapeFill(element)"
-                      [attr.stroke]="element.stroke"
-                      [attr.stroke-width]="element.strokeWidth"
+                      [attr.stroke]="usesAbsoluteBackground(element) ? null : element.stroke"
+                      [attr.stroke-width]="usesAbsoluteBackground(element) ? null : element.strokeWidth"
                     />
+                    @if (usesAbsoluteBackground(element)) {
+                      <g [attr.clip-path]="'url(#' + backgroundClipPathId(element) + ')'">
+                        <image
+                          [attr.x]="absoluteBackgroundImageX(element)"
+                          [attr.y]="absoluteBackgroundImageY(element)"
+                          [attr.width]="absoluteBackgroundImageWidth(element)"
+                          [attr.height]="absoluteBackgroundImageHeight(element)"
+                          [attr.preserveAspectRatio]="absoluteBackgroundPreserveAspectRatio(element)"
+                          [attr.href]="element.backgroundImage"
+                        />
+                      </g>
+                      <path
+                        [attr.d]="elementPath(element)"
+                        fill="none"
+                        [attr.stroke]="element.stroke"
+                        [attr.stroke-width]="element.strokeWidth"
+                      />
+                    }
                     <circle
                       cx="0"
                       cy="0"
