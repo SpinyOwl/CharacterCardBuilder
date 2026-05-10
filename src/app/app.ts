@@ -218,7 +218,18 @@ export class App {
 
   @HostListener('document:keydown', ['$event'])
   onDocumentKeyDown(event: KeyboardEvent): void {
-    if ((!event.ctrlKey && !event.metaKey) || this.isEditableShortcutTarget(event.target)) {
+    if (this.isEditableShortcutTarget(event.target)) {
+      return;
+    }
+
+    if (event.key === 'Delete') {
+      if (this.deleteSelectedElement()) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (!event.ctrlKey && !event.metaKey) {
       return;
     }
 
@@ -538,7 +549,10 @@ export class App {
         svg,
         canvas.width,
         canvas.height,
-        this.state.visibleLayers().map((layer) => layer.id),
+        this.state
+          .visibleLayers()
+          .map((layer) => layer.id)
+          .reverse(),
       );
     } catch (error) {
       if (error instanceof ExportImageAccessError) {
@@ -693,6 +707,15 @@ export class App {
   deleteElement(element: DesignElement): void {
     this.state.deleteElement(element.id);
     this.refreshYaml();
+  }
+
+  deleteSelectedElement(): boolean {
+    const selectedElement = this.state.selectedElement();
+    if (!selectedElement) {
+      return false;
+    }
+    this.deleteElement(selectedElement);
+    return true;
   }
 
   copySelection(): boolean {

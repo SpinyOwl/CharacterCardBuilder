@@ -147,13 +147,18 @@ export class CanvasStageComponent {
     };
   }
 
-  onViewElementPointerDown(event: PointerEvent, element: DesignElement): void {
-    if (this.state.mode() !== 'view' || !isShapeElement(element)) {
+  onViewElementPointerDown(event: PointerEvent, _element: DesignElement): void {
+    if (this.state.mode() !== 'view') {
       return;
     }
 
-    const interaction = (element.interactions ?? []).find((candidate) => candidate.visible);
-    if (!interaction) {
+    const hit = this.findInteractiveElementAtPointer(event);
+    if (!hit) {
+      return;
+    }
+
+    const interaction = (hit.element.interactions ?? []).find((candidate) => candidate.visible);
+    if (!interaction || hit.element.locked || !hit.element.visible) {
       return;
     }
 
@@ -161,10 +166,10 @@ export class CanvasStageComponent {
     if (interaction.type === 'rotation') {
       this.dragState = {
         kind: 'rotate-interaction',
-        elementId: element.id,
+        elementId: hit.element.id,
         interactionId: interaction.id,
         lastAngle: this.pointerAngleFromPoint(event, {
-          ...this.interactionPointToWorld(element, interaction, 'pivot'),
+          ...this.interactionPointToWorld(hit.element, interaction, 'pivot'),
         }),
       };
       return;
@@ -172,7 +177,7 @@ export class CanvasStageComponent {
 
     this.dragState = {
       kind: 'slide-interaction',
-      elementId: element.id,
+      elementId: hit.element.id,
       interactionId: interaction.id,
       last: this.pointerToSvgPoint(event),
     };
@@ -628,8 +633,16 @@ export class CanvasStageComponent {
     return `${handle}-resize`;
   }
 
+  selectionOutlineThickness(): number {
+    return this.appSettings.selectionOutlineThickness() / this.editorHelperScale();
+  }
+
+  selectionHandleSize(): number {
+    return this.appSettings.selectionHandleSize() / this.editorHelperScale();
+  }
+
   resizeHandleOffset(): number {
-    return this.appSettings.selectionHandleSize() / 2;
+    return this.selectionHandleSize() / 2;
   }
 
   gridPatternId(): string {
@@ -657,6 +670,10 @@ export class CanvasStageComponent {
     return Number.isFinite(this.canvasScale)
       ? Math.min(4, Math.max(0.25, this.canvasScale))
       : 1;
+  }
+
+  private editorHelperScale(): number {
+    return this.isFitCanvasView() ? 1 : this.normalizedCanvasScale();
   }
 
   scaledCanvasWidthMm(): number | null {
@@ -1182,6 +1199,32 @@ export class CanvasStageComponent {
       for (const element of elements) {
         if (element.visible && !element.locked && this.isPointInsideElement(point, element)) {
           return { layer, element };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  private findInteractiveElementAtPointer(event: PointerEvent): { element: ShapeElement } | null {
+    const point = this.pointerToSvgPoint(event);
+    const layers = [...this.state.visibleLayers()].reverse();
+
+    for (const layer of layers) {
+      if (layer.locked || !layer.visible) {
+        continue;
+      }
+
+      const elements = [...this.allElements(layer.elements)].reverse();
+      for (const element of elements) {
+        if (
+          isShapeElement(element) &&
+          element.visible &&
+          !element.locked &&
+          (element.interactions ?? []).some((interaction) => interaction.visible) &&
+          this.isPointInsideElement(point, element)
+        ) {
+          return { element };
         }
       }
     }

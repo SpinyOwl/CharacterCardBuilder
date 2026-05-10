@@ -342,9 +342,7 @@
                     cy="0"
                     [attr.r]="element.radius"
                     [style.stroke]="isSelected(element) ? appSettings.selectionOutlineColor() : null"
-                    [style.stroke-width]="
-                      isSelected(element) ? appSettings.selectionOutlineThickness() : null
-                    "
+                    [style.stroke-width]="isSelected(element) ? selectionOutlineThickness() : null"
                     [attr.transform]="renderTransform(element)"
                     (pointerdown)="onElementPointerDown($event, element, layer)"
                   />
@@ -355,9 +353,7 @@
                     [class.selected-outline]="isSelected(element)"
                     [attr.d]="elementPath(element)"
                     [style.stroke]="isSelected(element) ? appSettings.selectionOutlineColor() : null"
-                    [style.stroke-width]="
-                      isSelected(element) ? appSettings.selectionOutlineThickness() : null
-                    "
+                    [style.stroke-width]="isSelected(element) ? selectionOutlineThickness() : null"
                     [attr.transform]="renderTransform(element)"
                     (pointerdown)="onElementPointerDown($event, element, layer)"
                   />
@@ -382,7 +378,7 @@
                   [attr.width]="selectionBox(element).width"
                   [attr.height]="selectionBox(element).height"
                   [style.stroke]="appSettings.selectionOutlineColor()"
-                  [style.stroke-width]="appSettings.selectionOutlineThickness()"
+                  [style.stroke-width]="selectionOutlineThickness()"
                 />
               </g>
               @if (isShape(element)) {
@@ -394,17 +390,17 @@
                     [attr.width]="selectionBox(element).width"
                     [attr.height]="selectionBox(element).height"
                     [style.stroke]="appSettings.selectionOutlineColor()"
-                    [style.stroke-width]="appSettings.selectionOutlineThickness()"
+                    [style.stroke-width]="selectionOutlineThickness()"
                   />
                   @for (handle of resizeHandles; track handle) {
                     <rect
                       class="resize-handle"
-                      [attr.width]="appSettings.selectionHandleSize()"
-                      [attr.height]="appSettings.selectionHandleSize()"
+                      [attr.width]="selectionHandleSize()"
+                      [attr.height]="selectionHandleSize()"
                       [attr.x]="resizeHandleX(selectionBox(element), handle) - resizeHandleOffset()"
                       [attr.y]="resizeHandleY(selectionBox(element), handle) - resizeHandleOffset()"
                       [style.stroke]="appSettings.selectionOutlineColor()"
-                      [style.stroke-width]="appSettings.selectionOutlineThickness()"
+                      [style.stroke-width]="selectionOutlineThickness()"
                       [style.cursor]="resizeCursor(handle)"
                       (pointerdown)="onShapeResizePointerDown($event, element, handle)"
                     />

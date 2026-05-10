@@ -93,7 +93,7 @@
 .subtractive-outline {
   fill: rgba(255, 255, 255, 0.16);
   stroke: #1c6ea4;
-  stroke-width: 0.8;
+  stroke-width: 0.4px;
   stroke-dasharray: 2 1.5;
   cursor: move;
   pointer-events: stroke;
