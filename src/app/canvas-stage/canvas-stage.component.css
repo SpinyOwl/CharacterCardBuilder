@@ -19,7 +19,7 @@
 }
 
 .canvas-stage-scaled {
-  place-items: start;
+  place-items: safe center;
   overflow: auto;
 }
 
